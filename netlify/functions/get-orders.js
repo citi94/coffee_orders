@@ -1,56 +1,89 @@
 const fetch = require('node-fetch');
+const jwt = require('jsonwebtoken');
+const { v4: uuidv4 } = require('uuid');
 
 exports.handler = async function(event, context) {
-    const clientId = process.env.ZETTLE_CLIENT_ID;
-    const clientSecret = process.env.ZETTLE_CLIENT_SECRET;
+    const query = new URLSearchParams(event.queryStringParameters || {});
+    const isTest = query.get('test') === 'true';
 
-    if (!clientId || !clientSecret) {
-        return new Response("Missing Zettle API credentials.", { status: 500 });
-    }
+    try {
+        // Decode the base64 encoded private key
+        const privateKey = Buffer.from(process.env.ZETTLE_PRIVATE_KEY_BASE64, 'base64').toString('utf8');
 
-    const auth = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
+        // Generate JWT assertion
+        const assertion = jwt.sign(
+            {
+                iss: process.env.ZETTLE_CLIENT_ID,
+                sub: process.env.ZETTLE_CLIENT_ID,
+                aud: 'https://oauth.zettle.com/token',
+                exp: Math.floor(Date.now() / 1000) + 3600, // Expires in 1 hour
+                jti: uuidv4()
+            },
+            privateKey,
+            { algorithm: 'RS256' }
+        );
 
-    let response = new Response(null, {
-        headers: {
-            'Content-Type': 'text/event-stream',
-            'Cache-Control': 'no-cache',
-            Connection: 'keep-alive'
-        },
-        status: 200
-    });
+        // Step 1: Get access token
+        const tokenResponse = await fetch('https://oauth.zettle.com/token', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            body: new URLSearchParams({
+                'grant_type': 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+                'client_id': process.env.ZETTLE_CLIENT_ID,
+                'assertion': assertion
+            }).toString()
+        });
 
-    response.body = new ReadableStream({
-        async start(controller) {
-            try {
-                while (true) {
-                    const res = await fetch('https://api.zettle.com/v1/orders', {
-                        method: 'GET',
-                        headers: {
-                            'Authorization': `Basic ${auth}`
-                        }
-                    });
-
-                    if (!res.ok) {
-                        throw new Error(`HTTP error! status: ${res.status}`);
-                    }
-
-                    const data = await res.json();
-
-                    // Send each order as a separate event
-                    data.orders.forEach(order => {
-                        controller.enqueue(`data: ${JSON.stringify(order)}\n\n`);
-                    });
-
-                    // Wait before fetching new orders
-                    await new Promise(resolve => setTimeout(resolve, 5000));
-                }
-            } catch (error) {
-                controller.error(error);
-            } finally {
-                controller.close();
-            }
+        const tokenData = await tokenResponse.json();
+        if (!tokenResponse.ok) {
+            throw new Error(`Failed to get access token: ${tokenData.error_description}`);
         }
-    });
 
-    return response;
+        const accessToken = tokenData.access_token;
+
+        if (isTest) {
+            // For test connection, return success message without fetching orders
+            return {
+                statusCode: 200,
+                body: JSON.stringify({
+                    message: "Connection successful.",
+                    timestamp: new Date().toISOString()
+                })
+            };
+        }
+
+        // Step 2: Fetch orders using the access token
+        const ordersResponse = await fetch('https://purchase.izettle.com/purchases/v2', {
+            headers: {
+                'Authorization': `Bearer ${accessToken}`
+            }
+        });
+
+        if (!ordersResponse.ok) {
+            const ordersError = await ordersResponse.json();
+            throw new Error(`Failed to fetch orders: ${ordersError.error_description}`);
+        }
+
+        const orders = await ordersResponse.json();
+
+        return {
+            statusCode: 200,
+            body: JSON.stringify({
+                message: "Orders fetched successfully.",
+                orders: orders.purchases || [],
+                timestamp: new Date().toISOString()
+            })
+        };
+
+    } catch (error) {
+        return {
+            statusCode: 500,
+            body: JSON.stringify({
+                message: "Connection failed: " + error.message,
+                timestamp: new Date().toISOString()
+            })
+        };
+    }
 };
