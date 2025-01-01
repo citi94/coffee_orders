@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Coffee Shop Orders - Debug</title>
+    <title>Coffee Shop Orders</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <script src="https://unpkg.com/react@17/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@17/umd/react-dom.production.min.js"></script>
@@ -21,12 +21,17 @@
                 try {
                     const response = await fetch('/.netlify/functions/get-orders');
                     const data = await response.json();
+                    
+                    // Log the raw response for debugging
+                    console.log('Raw API Response:', data);
+                    
                     setTestResult({
-                        success: response.ok,
+                        success: true,
                         status: response.status,
                         data: data
                     });
                 } catch (error) {
+                    console.error('Error:', error);
                     setTestResult({
                         success: false,
                         error: error.message
@@ -36,24 +41,41 @@
             }
 
             return (
-                <div className="p-4 max-w-3xl mx-auto">
+                <div className="p-4 max-w-4xl mx-auto">
                     <div className="bg-white p-4 rounded-lg shadow mb-4">
-                        <h1 className="text-xl font-bold mb-4">Connection Test</h1>
+                        <h1 className="text-2xl font-bold mb-4">Connection Test</h1>
                         
                         <button 
                             onClick={testConnection}
-                            className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+                            className={`px-4 py-2 rounded text-white ${loading ? 'bg-gray-500' : 'bg-blue-500 hover:bg-blue-600'}`}
                             disabled={loading}
                         >
                             {loading ? 'Testing...' : 'Test Connection'}
                         </button>
 
                         {testResult && (
-                            <div className="mt-4 p-4 rounded bg-gray-100">
-                                <h2 className="font-bold mb-2">Test Results:</h2>
-                                <pre className="whitespace-pre-wrap">
+                            <div className="mt-4">
+                                <h2 className="text-xl font-bold mb-2">Test Results:</h2>
+                                <pre className="bg-gray-100 p-4 rounded overflow-auto">
                                     {JSON.stringify(testResult, null, 2)}
                                 </pre>
+                                
+                                {testResult.data?.orders && (
+                                    <div className="mt-4">
+                                        <h3 className="text-lg font-bold mb-2">Orders Found: {testResult.data.orders.length}</h3>
+                                        {testResult.data.orders.map((order, index) => (
+                                            <div key={index} className="bg-white shadow rounded p-4 mb-2">
+                                                <div className="flex justify-between">
+                                                    <span>Order #{order.id}</span>
+                                                    <span>${order.total}</span>
+                                                </div>
+                                                <div className="text-sm text-gray-600">
+                                                    Items: {order.items.join(', ')}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>
@@ -65,4 +87,3 @@
     </script>
 </body>
 </html>
-</antArtifact>
