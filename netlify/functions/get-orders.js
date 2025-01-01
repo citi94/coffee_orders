@@ -2,7 +2,7 @@ const fetch = require('node-fetch');
 
 exports.handler = async function(event, context) {
     try {
-        // Attempt OAuth token request
+        // Attempt OAuth token request with client_credentials grant type
         const tokenResponse = await fetch('https://oauth.zettle.com/token', {
             method: 'POST',
             headers: {
@@ -10,7 +10,7 @@ exports.handler = async function(event, context) {
                 'Accept': 'application/json'
             },
             body: new URLSearchParams({
-                grant_type: 'password',
+                grant_type: 'client_credentials',
                 client_id: process.env.ZETTLE_CLIENT_ID,
                 client_secret: process.env.ZETTLE_CLIENT_SECRET
             }).toString()
@@ -31,7 +31,7 @@ exports.handler = async function(event, context) {
                         statusCode: tokenResponse.status,
                         headers: Object.fromEntries(tokenResponse.headers.entries()),
                         requestInfo: {
-                            grantType: 'password',
+                            grantType: 'client_credentials',
                             clientIdUsed: process.env.ZETTLE_CLIENT_ID?.substring(0, 8) + '...',
                             secretLength: process.env.ZETTLE_CLIENT_SECRET?.length
                         }
