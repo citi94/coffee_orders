@@ -2,64 +2,68 @@ const fetch = require('node-fetch');
 
 exports.handler = async function(event, context) {
     try {
-        // Debug log to check exact format of credentials
-        console.log('Client ID length:', process.env.ZETTLE_CLIENT_ID?.length);
-        console.log('Client Secret length:', process.env.ZETTLE_CLIENT_SECRET?.length);
-
-        // Create auth string and encode it
-        const authString = Buffer.from(
-            `${process.env.ZETTLE_CLIENT_ID}:${process.env.ZETTLE_CLIENT_SECRET}`
-        ).toString('base64');
-
-        // Get Zettle access token using basic auth
+        // Attempt OAuth token request
         const tokenResponse = await fetch('https://oauth.zettle.com/token', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
-                'Authorization': `Basic ${authString}`
+                'Accept': 'application/json'
             },
-            body: 'grant_type=client_credentials'
+            body: new URLSearchParams({
+                grant_type: 'password',
+                client_id: process.env.ZETTLE_CLIENT_ID,
+                client_secret: process.env.ZETTLE_CLIENT_SECRET
+            }).toString()
         });
 
-        // Log the response headers for debugging
-        console.log('Response status:', tokenResponse.status);
-        const responseHeaders = {};
-        tokenResponse.headers.forEach((value, name) => {
-            responseHeaders[name] = value;
-        });
-        console.log('Response headers:', responseHeaders);
+        const responseText = await tokenResponse.text();
+        console.log('Raw response:', responseText);
 
         if (!tokenResponse.ok) {
-            const tokenError = await tokenResponse.text();
-            console.log('Token Error Response:', tokenError);
-            
             return {
                 statusCode: 200,
                 body: JSON.stringify({
                     status: 'error',
                     stage: 'authentication',
                     message: 'Failed to get access token',
-                    details: tokenError,
+                    details: responseText,
                     debug: {
-                        responseStatus: tokenResponse.status,
-                        responseHeaders: responseHeaders,
-                        authStringLength: authString.length
+                        statusCode: tokenResponse.status,
+                        headers: Object.fromEntries(tokenResponse.headers.entries()),
+                        requestInfo: {
+                            grantType: 'password',
+                            clientIdUsed: process.env.ZETTLE_CLIENT_ID?.substring(0, 8) + '...',
+                            secretLength: process.env.ZETTLE_CLIENT_SECRET?.length
+                        }
                     },
                     timestamp: new Date().toISOString()
                 })
             };
         }
 
-        const tokenData = await tokenResponse.json();
-        console.log('Token response:', JSON.stringify(tokenData));
+        let tokenData;
+        try {
+            tokenData = JSON.parse(responseText);
+        } catch (e) {
+            return {
+                statusCode: 200,
+                body: JSON.stringify({
+                    status: 'error',
+                    stage: 'parsing',
+                    message: 'Failed to parse token response',
+                    rawResponse: responseText,
+                    timestamp: new Date().toISOString()
+                })
+            };
+        }
 
-        // Rest of the code remains the same...
+        // Test response before proceeding
         return {
             statusCode: 200,
             body: JSON.stringify({
-                status: 'debug',
-                message: 'Testing authentication',
-                tokenData: tokenData,
+                status: 'success',
+                stage: 'authentication',
+                tokenReceived: !!tokenData.access_token,
                 timestamp: new Date().toISOString()
             })
         };
