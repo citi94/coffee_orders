@@ -13,71 +13,87 @@
 
     <script type="text/babel">
         function OrderDisplay() {
-            const [testResult, setTestResult] = React.useState(null);
-            const [loading, setLoading] = React.useState(false);
+            const [orders, setOrders] = React.useState([]);
+            const [lastUpdated, setLastUpdated] = React.useState(new Date());
+            const [testStatus, setTestStatus] = React.useState('');
 
             async function testConnection() {
-                setLoading(true);
+                setTestStatus('Testing connection...');
                 try {
                     const response = await fetch('/.netlify/functions/get-orders');
                     const data = await response.json();
                     
-                    // Log the raw response for debugging
-                    console.log('Raw API Response:', data);
-                    
-                    setTestResult({
-                        success: true,
-                        status: response.status,
-                        data: data
-                    });
+                    if (response.ok) {
+                        setTestStatus(`Connection successful! Found ${data.length || 0} orders.`);
+                        setOrders(data);
+                    } else {
+                        setTestStatus(`Error: ${data.error || 'Unknown error'}`);
+                    }
                 } catch (error) {
-                    console.error('Error:', error);
-                    setTestResult({
-                        success: false,
-                        error: error.message
-                    });
+                    setTestStatus(`Connection failed: ${error.message}`);
                 }
-                setLoading(false);
+                setLastUpdated(new Date());
             }
 
             return (
-                <div className="p-4 max-w-4xl mx-auto">
+                <div className="p-4 max-w-6xl mx-auto">
+                    {/* Test Section */}
                     <div className="bg-white p-4 rounded-lg shadow mb-4">
-                        <h1 className="text-2xl font-bold mb-4">Connection Test</h1>
-                        
                         <button 
                             onClick={testConnection}
-                            className={`px-4 py-2 rounded text-white ${loading ? 'bg-gray-500' : 'bg-blue-500 hover:bg-blue-600'}`}
-                            disabled={loading}
+                            className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
                         >
-                            {loading ? 'Testing...' : 'Test Connection'}
+                            Test Connection
                         </button>
-
-                        {testResult && (
-                            <div className="mt-4">
-                                <h2 className="text-xl font-bold mb-2">Test Results:</h2>
-                                <pre className="bg-gray-100 p-4 rounded overflow-auto">
-                                    {JSON.stringify(testResult, null, 2)}
-                                </pre>
-                                
-                                {testResult.data?.orders && (
-                                    <div className="mt-4">
-                                        <h3 className="text-lg font-bold mb-2">Orders Found: {testResult.data.orders.length}</h3>
-                                        {testResult.data.orders.map((order, index) => (
-                                            <div key={index} className="bg-white shadow rounded p-4 mb-2">
-                                                <div className="flex justify-between">
-                                                    <span>Order #{order.id}</span>
-                                                    <span>${order.total}</span>
-                                                </div>
-                                                <div className="text-sm text-gray-600">
-                                                    Items: {order.items.join(', ')}
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
+                        {testStatus && (
+                            <div className={`mt-2 p-2 rounded ${
+                                testStatus.includes('successful') ? 'bg-green-100 text-green-800' : 
+                                testStatus.includes('Testing') ? 'bg-blue-100 text-blue-800' :
+                                'bg-red-100 text-red-800'
+                            }`}>
+                                {testStatus}
                             </div>
                         )}
+                    </div>
+
+                    {/* Regular Order Display */}
+                    <div className="bg-white p-4 rounded-lg shadow mb-6 flex justify-between items-center">
+                        <h1 className="text-2xl font-bold">Today's Orders</h1>
+                        <div className="text-gray-500">
+                            Last updated: {lastUpdated.toLocaleTimeString()}
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {orders.map(order => (
+                            <div key={order.id} className="bg-white rounded-lg shadow p-4">
+                                <div className="flex justify-between items-center mb-3">
+                                    <h2 className="text-xl font-bold">Order #{order.id}</h2>
+                                    <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                                        order.status === 'new' ? 'bg-blue-100 text-blue-800' :
+                                        order.status === 'preparing' ? 'bg-yellow-100 text-yellow-800' :
+                                        'bg-green-100 text-green-800'
+                                    }`}>
+                                        {order.status.toUpperCase()}
+                                    </span>
+                                </div>
+                                
+                                <ul className="space-y-2 mb-4">
+                                    {order.items.map((item, index) => (
+                                        <li key={index} className="text-lg">• {item}</li>
+                                    ))}
+                                </ul>
+                                
+                                <div className="flex justify-between items-center pt-3 border-t border-gray-200">
+                                    <span className="text-gray-600">
+                                        {new Date(order.timestamp).toLocaleTimeString()}
+                                    </span>
+                                    <span className="text-xl font-bold">
+                                        ${order.total.toFixed(2)}
+                                    </span>
+                                </div>
+                            </div>
+                        ))}
                     </div>
                 </div>
             );
