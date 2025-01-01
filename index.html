@@ -12,81 +12,103 @@
     <div id="root"></div>
 
     <script type="text/babel">
-        function OrderDisplay() {
-            const [orders, setOrders] = React.useState([]);
-            const [completedOrders, setCompletedOrders] = React.useState([]);
+    function OrderDisplay() {
+        const [orders, setOrders] = React.useState([]);
+        const [completedOrders, setCompletedOrders] = React.useState([]);
+        const [testResult, setTestResult] = React.useState(null);
+        const [loading, setLoading] = React.useState(false);
 
-            React.useEffect(() => {
-                const eventSource = new EventSource('/.netlify/functions/get-orders');
+        React.useEffect(() => {
+            const eventSource = new EventSource('/.netlify/functions/get-orders');
 
-                eventSource.onmessage = (event) => {
-                    const data = JSON.parse(event.data);
-                    setOrders(prevOrders => {
-                        // Ensure we don't add duplicate orders
-                        const isDuplicate = prevOrders.some(order => order.id === data.id);
-                        if (!isDuplicate) {
-                            return [...prevOrders, data];
-                        }
-                        return prevOrders;
-                    });
-                };
-
-                eventSource.onerror = (error) => {
-                    console.error('EventSource failed:', error);
-                };
-
-                // Clean up the event source on component unmount
-                return () => {
-                    eventSource.close();
-                };
-            }, []);
-
-            const markOrderCompleted = (orderId) => {
-                setOrders(prevOrders => prevOrders.filter(order => order.id !== orderId));
-                setCompletedOrders(prevCompleted => [...prevCompleted, orderId]);
+            eventSource.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                setOrders(prevOrders => {
+                    if (!prevOrders.some(order => order.id === data.id)) {
+                        return [...prevOrders, data];
+                    }
+                    return prevOrders;
+                });
             };
 
-            return (
-                <div className="p-4 max-w-3xl mx-auto">
-                    <h1 className="text-2xl font-bold mb-4 text-center">Coffee Shop Orders</h1>
-                    <div className="bg-white p-4 rounded-lg shadow mb-4">
-                        <h2 className="text-xl font-bold mb-2">Active Orders</h2>
-                        {orders.length === 0 ? (
-                            <p>No active orders at this time.</p>
-                        ) : (
-                            <ul className="list-disc pl-4">
-                                {orders.map(order => (
-                                    <li key={order.id} className="mb-2">
-                                        <span className="font-semibold">{order.name}</span>
-                                        <span className="ml-2">{order.details}</span>
-                                        <button
-                                            onClick={() => markOrderCompleted(order.id)}
-                                            className="float-right bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600"
-                                        >
-                                            Mark as Completed
-                                        </button>
-                                    </li>
-                                ))}
-                            </ul>
-                        )}
+            return () => {
+                eventSource.close();
+            };
+        }, []);
+
+        const markOrderCompleted = (orderId) => {
+            setOrders(prevOrders => prevOrders.filter(order => order.id !== orderId));
+            setCompletedOrders(prevCompleted => [...prevCompleted, orderId]);
+        };
+
+        const testConnection = async () => {
+            setLoading(true);
+            try {
+                const response = await fetch('/.netlify/functions/test-connection');
+                const data = await response.json();
+                setTestResult(data);
+            } catch (error) {
+                setTestResult({ message: "Connection failed: " + error.message });
+            }
+            setLoading(false);
+        };
+
+        return (
+            <div className="p-4 max-w-3xl mx-auto">
+                <h1 className="text-2xl font-bold mb-4 text-center">Coffee Shop Orders</h1>
+                <div className="bg-white p-4 rounded-lg shadow mb-4">
+                    <h2 className="text-xl font-bold mb-2">Active Orders</h2>
+                    {orders.length === 0 ? (
+                        <p>No active orders at this time.</p>
+                    ) : (
+                        <ul className="list-disc pl-4">
+                            {orders.map(order => (
+                                <li key={order.id} className="mb-2">
+                                    <span className="font-semibold">{order.name}</span>
+                                    <span className="ml-2">{order.details}</span>
+                                    <button
+                                        onClick={() => markOrderCompleted(order.id)}
+                                        className="float-right bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600"
+                                    >
+                                        Mark as Completed
+                                    </button>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                </div>
+                {completedOrders.length > 0 && (
+                    <div className="bg-white p-4 rounded-lg shadow">
+                        <h2 className="text-xl font-bold mb-2">Completed Orders</h2>
+                        <ul className="list-disc pl-4">
+                            {completedOrders.map(orderId => (
+                                <li key={orderId} className="mb-2">
+                                    Order #{orderId} - Completed
+                                </li>
+                            ))}
+                        </ul>
                     </div>
-                    {completedOrders.length > 0 && (
-                        <div className="bg-white p-4 rounded-lg shadow">
-                            <h2 className="text-xl font-bold mb-2">Completed Orders</h2>
-                            <ul className="list-disc pl-4">
-                                {completedOrders.map(orderId => (
-                                    <li key={orderId} className="mb-2">
-                                        Order #{orderId} - Completed
-                                    </li>
-                                ))}
-                            </ul>
+                )}
+                <div className="bg-white p-4 rounded-lg shadow mt-4">
+                    <h2 className="text-xl font-bold mb-2">Connection Test</h2>
+                    <button
+                        onClick={testConnection}
+                        className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+                        disabled={loading}
+                    >
+                        {loading ? 'Testing...' : 'Test Connection'}
+                    </button>
+                    {testResult && (
+                        <div className="mt-4 p-4 rounded bg-gray-100">
+                            <p>{testResult.message}</p>
                         </div>
                     )}
                 </div>
-            );
-        }
+            </div>
+        );
+    }
 
-        ReactDOM.render(<OrderDisplay />, document.getElementById('root'));
-    </script>
+    ReactDOM.render(<OrderDisplay />, document.getElementById('root'));
+</script>
 </body>
 </html>
