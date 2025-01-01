@@ -1,15 +1,18 @@
+const fetch = require('node-fetch');
+
 exports.handler = async function(event, context) {
     try {
-        // Get Zettle access token
+        // Get Zettle access token using client credentials flow
         const tokenResponse = await fetch('https://oauth.zettle.com/token', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'Authorization': `Basic ${Buffer.from(
-                    `${process.env.ZETTLE_CLIENT_ID}:${process.env.ZETTLE_CLIENT_SECRET}`
-                ).toString('base64')}`
+                'Content-Type': 'application/x-www-form-urlencoded'
             },
-            body: 'grant_type=client_credentials'
+            body: new URLSearchParams({
+                'client_id': process.env.ZETTLE_CLIENT_ID,
+                'client_secret': process.env.ZETTLE_CLIENT_SECRET,
+                'grant_type': 'client_credentials'
+            }).toString()
         });
 
         if (!tokenResponse.ok) {
@@ -22,6 +25,10 @@ exports.handler = async function(event, context) {
                     stage: 'authentication',
                     message: 'Failed to get access token',
                     details: tokenError,
+                    debug: {
+                        clientIdLength: process.env.ZETTLE_CLIENT_ID?.length,
+                        secretLength: process.env.ZETTLE_CLIENT_SECRET?.length
+                    },
                     timestamp: new Date().toISOString()
                 })
             };
