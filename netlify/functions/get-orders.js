@@ -5,43 +5,52 @@ exports.handler = async function(event, context) {
     const clientSecret = process.env.ZETTLE_CLIENT_SECRET;
 
     if (!clientId || !clientSecret) {
-        return {
-            statusCode: 500,
-            body: JSON.stringify({
-                message: "Missing Zettle API credentials.",
-                timestamp: new Date().toISOString()
-            })
-        };
+        return new Response("Missing Zettle API credentials.", { status: 500 });
     }
 
-    // Set up SSE headers
-    const headers = new Headers();
-    headers.append('Content-Type', 'text/event-stream');
-    headers.append('Cache-Control', 'no-cache');
-    headers.append('Connection', 'keep-alive');
+    const auth = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
 
-    return new Response(
-        new EventSource(async (event) => {
+    let response = new Response(null, {
+        headers: {
+            'Content-Type': 'text/event-stream',
+            'Cache-Control': 'no-cache',
+            Connection: 'keep-alive'
+        },
+        status: 200
+    });
+
+    response.body = new ReadableStream({
+        async start(controller) {
             try {
-                // Fetch orders from Zettle
-                const response = await fetch('https://api.zettle.com/v1/orders', {
-                    method: 'GET',
-                    headers: {
-                        'Authorization': `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`
+                while (true) {
+                    const res = await fetch('https://api.zettle.com/v1/orders', {
+                        method: 'GET',
+                        headers: {
+                            'Authorization': `Basic ${auth}`
+                        }
+                    });
+
+                    if (!res.ok) {
+                        throw new Error(`HTTP error! status: ${res.status}`);
                     }
-                });
 
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
+                    const data = await res.json();
+
+                    // Send each order as a separate event
+                    data.orders.forEach(order => {
+                        controller.enqueue(`data: ${JSON.stringify(order)}\n\n`);
+                    });
+
+                    // Wait before fetching new orders
+                    await new Promise(resolve => setTimeout(resolve, 5000));
                 }
-
-                const data = await response.json();
-                event.send(`data: ${JSON.stringify(data)}\n\n`);
-
             } catch (error) {
-                event.send(`data: ${JSON.stringify({ error: error.message })}\n\n`);
+                controller.error(error);
+            } finally {
+                controller.close();
             }
-        }),
-        { headers }
-    );
+        }
+    });
+
+    return response;
 };
