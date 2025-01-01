@@ -2,18 +2,17 @@ const fetch = require('node-fetch');
 
 exports.handler = async function(event, context) {
     try {
-        // Attempt OAuth token request with client_credentials grant type
+        // Create basic auth string
+        const credentials = Buffer.from(`${process.env.ZETTLE_CLIENT_ID}:${process.env.ZETTLE_CLIENT_SECRET}`).toString('base64');
+
+        // Attempt OAuth token request with Basic Auth
         const tokenResponse = await fetch('https://oauth.zettle.com/token', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'Accept': 'application/json'
+                'Authorization': `Basic ${credentials}`,
+                'Content-Type': 'application/x-www-form-urlencoded'
             },
-            body: new URLSearchParams({
-                grant_type: 'client_credentials',
-                client_id: process.env.ZETTLE_CLIENT_ID,
-                client_secret: process.env.ZETTLE_CLIENT_SECRET
-            }).toString()
+            body: 'grant_type=client_credentials'
         });
 
         const responseText = await tokenResponse.text();
@@ -32,7 +31,9 @@ exports.handler = async function(event, context) {
                         headers: Object.fromEntries(tokenResponse.headers.entries()),
                         requestInfo: {
                             grantType: 'client_credentials',
+                            authType: 'Basic',
                             clientIdUsed: process.env.ZETTLE_CLIENT_ID?.substring(0, 8) + '...',
+                            credentialsLength: credentials.length,
                             secretLength: process.env.ZETTLE_CLIENT_SECRET?.length
                         }
                     },
