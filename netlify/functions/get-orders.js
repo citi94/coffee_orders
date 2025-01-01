@@ -2,21 +2,20 @@ const fetch = require('node-fetch');
 
 exports.handler = async function(event, context) {
     try {
-        // Create basic auth string
-        const credentials = Buffer.from(`${process.env.ZETTLE_CLIENT_ID}:${process.env.ZETTLE_CLIENT_SECRET}`).toString('base64');
-
-        // Attempt OAuth token request with Basic Auth
+        // Get access token using assertion grant flow
         const tokenResponse = await fetch('https://oauth.zettle.com/token', {
             method: 'POST',
             headers: {
-                'Authorization': `Basic ${credentials}`,
                 'Content-Type': 'application/x-www-form-urlencoded'
             },
-            body: 'grant_type=client_credentials'
+            body: new URLSearchParams({
+                'grant_type': 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+                'assertion': process.env.ZETTLE_CLIENT_SECRET
+            }).toString()
         });
 
-        const responseText = await tokenResponse.text();
-        console.log('Raw response:', responseText);
+        const tokenText = await tokenResponse.text();
+        console.log('Token response:', tokenText);
 
         if (!tokenResponse.ok) {
             return {
@@ -25,46 +24,55 @@ exports.handler = async function(event, context) {
                     status: 'error',
                     stage: 'authentication',
                     message: 'Failed to get access token',
-                    details: responseText,
+                    details: tokenText,
                     debug: {
                         statusCode: tokenResponse.status,
-                        headers: Object.fromEntries(tokenResponse.headers.entries()),
-                        requestInfo: {
-                            grantType: 'client_credentials',
-                            authType: 'Basic',
-                            clientIdUsed: process.env.ZETTLE_CLIENT_ID?.substring(0, 8) + '...',
-                            credentialsLength: credentials.length,
-                            secretLength: process.env.ZETTLE_CLIENT_SECRET?.length
-                        }
+                        headers: Object.fromEntries(tokenResponse.headers.entries())
                     },
                     timestamp: new Date().toISOString()
                 })
             };
         }
 
-        let tokenData;
-        try {
-            tokenData = JSON.parse(responseText);
-        } catch (e) {
+        const { access_token } = JSON.parse(tokenText);
+
+        // Get today's orders using the access token
+        const startOfDay = new Date();
+        startOfDay.setHours(0, 0, 0, 0);
+
+        const ordersResponse = await fetch(
+            `https://purchase.izettle.com/purchases/v2?startDate=${startOfDay.toISOString()}`,
+            {
+                headers: {
+                    'Authorization': `Bearer ${access_token}`,
+                    'Content-Type': 'application/json'
+                }
+            }
+        );
+
+        const ordersText = await ordersResponse.text();
+        console.log('Orders response:', ordersText);
+
+        if (!ordersResponse.ok) {
             return {
                 statusCode: 200,
                 body: JSON.stringify({
                     status: 'error',
-                    stage: 'parsing',
-                    message: 'Failed to parse token response',
-                    rawResponse: responseText,
+                    stage: 'fetching_orders',
+                    message: 'Failed to fetch orders',
+                    details: ordersText,
                     timestamp: new Date().toISOString()
                 })
             };
         }
 
-        // Test response before proceeding
+        const ordersData = JSON.parse(ordersText);
+
         return {
             statusCode: 200,
             body: JSON.stringify({
                 status: 'success',
-                stage: 'authentication',
-                tokenReceived: !!tokenData.access_token,
+                orders: ordersData.purchases || [],
                 timestamp: new Date().toISOString()
             })
         };
