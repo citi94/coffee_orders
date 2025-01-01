@@ -2,22 +2,37 @@ const fetch = require('node-fetch');
 
 exports.handler = async function(event, context) {
     try {
-        // Get Zettle access token using client credentials flow
+        // Debug log to check exact format of credentials
+        console.log('Client ID length:', process.env.ZETTLE_CLIENT_ID?.length);
+        console.log('Client Secret length:', process.env.ZETTLE_CLIENT_SECRET?.length);
+
+        // Create auth string and encode it
+        const authString = Buffer.from(
+            `${process.env.ZETTLE_CLIENT_ID}:${process.env.ZETTLE_CLIENT_SECRET}`
+        ).toString('base64');
+
+        // Get Zettle access token using basic auth
         const tokenResponse = await fetch('https://oauth.zettle.com/token', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/x-www-form-urlencoded'
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'Authorization': `Basic ${authString}`
             },
-            body: new URLSearchParams({
-                'client_id': process.env.ZETTLE_CLIENT_ID,
-                'client_secret': process.env.ZETTLE_CLIENT_SECRET,
-                'grant_type': 'client_credentials'
-            }).toString()
+            body: 'grant_type=client_credentials'
         });
+
+        // Log the response headers for debugging
+        console.log('Response status:', tokenResponse.status);
+        const responseHeaders = {};
+        tokenResponse.headers.forEach((value, name) => {
+            responseHeaders[name] = value;
+        });
+        console.log('Response headers:', responseHeaders);
 
         if (!tokenResponse.ok) {
             const tokenError = await tokenResponse.text();
-            console.log('Token Error:', tokenError);
+            console.log('Token Error Response:', tokenError);
+            
             return {
                 statusCode: 200,
                 body: JSON.stringify({
@@ -26,64 +41,25 @@ exports.handler = async function(event, context) {
                     message: 'Failed to get access token',
                     details: tokenError,
                     debug: {
-                        clientIdLength: process.env.ZETTLE_CLIENT_ID?.length,
-                        secretLength: process.env.ZETTLE_CLIENT_SECRET?.length
+                        responseStatus: tokenResponse.status,
+                        responseHeaders: responseHeaders,
+                        authStringLength: authString.length
                     },
                     timestamp: new Date().toISOString()
                 })
             };
         }
 
-        const { access_token } = await tokenResponse.json();
-        console.log('Got access token successfully');
+        const tokenData = await tokenResponse.json();
+        console.log('Token response:', JSON.stringify(tokenData));
 
-        // Get today's orders
-        const startOfDay = new Date();
-        startOfDay.setHours(0, 0, 0, 0);
-
-        const ordersResponse = await fetch(
-            `https://purchase.izettle.com/purchases/v2?startDate=${startOfDay.toISOString()}`,
-            {
-                headers: {
-                    'Authorization': `Bearer ${access_token}`
-                }
-            }
-        );
-
-        if (!ordersResponse.ok) {
-            const ordersError = await ordersResponse.text();
-            console.log('Orders Error:', ordersError);
-            return {
-                statusCode: 200,
-                body: JSON.stringify({
-                    status: 'error',
-                    stage: 'fetching_orders',
-                    message: 'Failed to fetch orders',
-                    details: ordersError,
-                    timestamp: new Date().toISOString()
-                })
-            };
-        }
-
-        const { purchases } = await ordersResponse.json();
-        
-        // Process orders
-        const processedOrders = purchases ? purchases.map(purchase => ({
-            id: purchase.purchaseNumber || 'Unknown',
-            items: purchase.products ? purchase.products.map(product => product.name || 'Unknown Item') : [],
-            status: (purchase.status || 'unknown').toLowerCase(),
-            timestamp: purchase.timestamp || new Date().toISOString(),
-            total: (purchase.amount || 0) / 100 // Convert from cents to dollars
-        })) : [];
-
-        console.log(`Successfully processed ${processedOrders.length} orders`);
-
+        // Rest of the code remains the same...
         return {
             statusCode: 200,
             body: JSON.stringify({
-                status: 'success',
-                orders: processedOrders,
-                orderCount: processedOrders.length,
+                status: 'debug',
+                message: 'Testing authentication',
+                tokenData: tokenData,
                 timestamp: new Date().toISOString()
             })
         };
