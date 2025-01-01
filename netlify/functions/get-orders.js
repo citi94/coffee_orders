@@ -2,65 +2,74 @@ const fetch = require('node-fetch');
 
 exports.handler = async function(event, context) {
     try {
-        // Try direct API access first with the API key
-        const ordersResponse = await fetch(
-            'https://purchase.izettle.com/purchases/v2',
-            {
-                headers: {
-                    'Authorization': `Bearer ${process.env.ZETTLE_CLIENT_SECRET}`,
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json'
-                }
-            }
-        );
+        // Step 1: Get access token following the documented approach
+        const tokenResponse = await fetch('https://oauth.zettle.com/token', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            body: new URLSearchParams({
+                'grant_type': 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+                'client_id': process.env.ZETTLE_CLIENT_ID,
+                'assertion': process.env.ZETTLE_CLIENT_SECRET
+            }).toString()
+        });
 
-        const responseText = await ordersResponse.text();
-        console.log('API Response:', responseText);
+        const tokenText = await tokenResponse.text();
+        console.log('Token response:', tokenText);
 
-        if (!ordersResponse.ok) {
-            // Try alternative endpoint if first one fails
-            const altResponse = await fetch(
-                'https://login.zettle.com/api/oauth/v2/token',
-                {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded',
-                        'Accept': 'application/json'
-                    },
-                    body: new URLSearchParams({
-                        grant_type: 'assertion',
-                        assertion: process.env.ZETTLE_CLIENT_SECRET,
-                        scope: 'READ:PURCHASE READ:USERINFO READ:PRODUCT READ:FINANCE'
-                    }).toString()
-                }
-            );
-
-            const altText = await altResponse.text();
-            console.log('Alternative endpoint response:', altText);
-
+        if (!tokenResponse.ok) {
             return {
                 statusCode: 200,
                 body: JSON.stringify({
-                    status: 'debug',
-                    message: 'Testing alternative authentication',
-                    firstTry: {
-                        status: ordersResponse.status,
-                        response: responseText
-                    },
-                    secondTry: {
-                        status: altResponse.status,
-                        response: altText
-                    },
+                    status: 'error',
+                    stage: 'getting_token',
+                    message: 'Failed to get access token',
+                    details: tokenText,
                     debug: {
-                        apiKeyLength: process.env.ZETTLE_CLIENT_SECRET?.length,
-                        clientIdPresent: !!process.env.ZETTLE_CLIENT_ID
+                        statusCode: tokenResponse.status,
+                        requestDetails: {
+                            endpoint: 'oauth.zettle.com/token',
+                            grantType: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+                            clientIdLength: process.env.ZETTLE_CLIENT_ID?.length,
+                            assertionLength: process.env.ZETTLE_CLIENT_SECRET?.length
+                        }
                     },
                     timestamp: new Date().toISOString()
                 })
             };
         }
 
-        const ordersData = JSON.parse(responseText);
+        const { access_token } = JSON.parse(tokenText);
+
+        // Step 2: Use the access token to get orders
+        const ordersResponse = await fetch(
+            'https://purchase.izettle.com/purchases/v2', 
+            {
+                headers: {
+                    'Authorization': `Bearer ${access_token}`
+                }
+            }
+        );
+
+        const ordersText = await ordersResponse.text();
+        console.log('Orders response:', ordersText);
+
+        if (!ordersResponse.ok) {
+            return {
+                statusCode: 200,
+                body: JSON.stringify({
+                    status: 'error',
+                    stage: 'fetching_orders',
+                    message: 'Failed to fetch orders',
+                    details: ordersText,
+                    tokenUsed: access_token.substring(0, 10) + '...',
+                    timestamp: new Date().toISOString()
+                })
+            };
+        }
+
+        const ordersData = JSON.parse(ordersText);
 
         return {
             statusCode: 200,
