@@ -1,4 +1,4 @@
-const fetch = require('node-fetch');
+const { fetch } = require('node-fetch');
 const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
 
@@ -68,14 +68,24 @@ exports.handler = async function(event, context) {
 
         const orders = await ordersResponse.json();
 
-        return {
+        // Set up SSE response
+        return new Response(null, {
             statusCode: 200,
-            body: JSON.stringify({
-                message: "Orders fetched successfully.",
-                orders: orders.purchases || [],
-                timestamp: new Date().toISOString()
+            headers: {
+                'Content-Type': 'text/event-stream',
+                'Cache-Control': 'no-cache',
+                'Connection': 'keep-alive'
+            },
+            body: new ReadableStream({
+                async start(controller) {
+                    // Simulate real-time order updates
+                    setInterval(() => {
+                        const order = orders.purchases[Math.floor(Math.random() * orders.purchases.length)];
+                        controller.enqueue(`data: ${JSON.stringify(order)}\n\n`);
+                    }, 5000);
+                }
             })
-        };
+        });
 
     } catch (error) {
         return {
