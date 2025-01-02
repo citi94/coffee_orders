@@ -1,89 +1,136 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Coffee Shop Orders</title>
+    <title>Barista Orders</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <script src="https://unpkg.com/react@17/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@17/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/babel-standalone@6.26.0/babel.min.js"></script>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
 </head>
-<body>
+<body class="bg-gray-100">
     <div id="root"></div>
 
     <script type="text/babel">
-        function OrderDisplay() {
-            const [testResult, setTestResult] = React.useState(null);
-            const [loading, setLoading] = React.useState(false);
+        function OrdersDisplay() {
+            const [orders, setOrders] = React.useState([]);
+            const [lastUpdated, setLastUpdated] = React.useState('');
+            const [error, setError] = React.useState(null);
 
-            async function testConnection() {
-                setLoading(true);
+            // Function to mark order as completed
+            const toggleOrderComplete = (orderId) => {
+                setOrders(orders.map(order => 
+                    order.id === orderId 
+                        ? {...order, completed: !order.completed}
+                        : order
+                ));
+            };
+
+            // Fetch orders
+            const fetchOrders = async () => {
                 try {
                     const response = await fetch('/.netlify/functions/get-orders');
                     const data = await response.json();
                     
-                    // Log the raw response for debugging
-                    console.log('Raw API Response:', data);
-                    
-                    setTestResult({
-                        success: true,
-                        status: response.status,
-                        data: data
-                    });
+                    if (data.status === 'success') {
+                        setOrders(data.orders);
+                        setLastUpdated(data.lastUpdated);
+                        setError(null);
+                    } else {
+                        setError(data.message);
+                    }
                 } catch (error) {
-                    console.error('Error:', error);
-                    setTestResult({
-                        success: false,
-                        error: error.message
-                    });
+                    setError(error.message);
                 }
-                setLoading(false);
-            }
+            };
+
+            // Fetch on load and every 30 seconds
+            React.useEffect(() => {
+                fetchOrders();
+                const interval = setInterval(fetchOrders, 30000);
+                return () => clearInterval(interval);
+            }, []);
+
+            // Filter out completed orders after 5 minutes
+            const activeOrders = orders.filter(order => 
+                !order.completed || 
+                (new Date() - new Date(order.timestamp)) < 5 * 60 * 1000
+            );
 
             return (
                 <div className="p-4 max-w-4xl mx-auto">
-                    <div className="bg-white p-4 rounded-lg shadow mb-4">
-                        <h1 className="text-2xl font-bold mb-4">Connection Test</h1>
-                        
-                        <button 
-                            onClick={testConnection}
-                            className={`px-4 py-2 rounded text-white ${loading ? 'bg-gray-500' : 'bg-blue-500 hover:bg-blue-600'}`}
-                            disabled={loading}
-                        >
-                            {loading ? 'Testing...' : 'Test Connection'}
-                        </button>
+                    <div className="flex justify-between items-center mb-4">
+                        <h1 className="text-3xl font-bold">Orders</h1>
+                        <div className="text-gray-600">
+                            Last updated: {lastUpdated}
+                        </div>
+                    </div>
 
-                        {testResult && (
-                            <div className="mt-4">
-                                <h2 className="text-xl font-bold mb-2">Test Results:</h2>
-                                <pre className="bg-gray-100 p-4 rounded overflow-auto">
-                                    {JSON.stringify(testResult, null, 2)}
-                                </pre>
-                                
-                                {testResult.data?.orders && (
-                                    <div className="mt-4">
-                                        <h3 className="text-lg font-bold mb-2">Orders Found: {testResult.data.orders.length}</h3>
-                                        {testResult.data.orders.map((order, index) => (
-                                            <div key={index} className="bg-white shadow rounded p-4 mb-2">
-                                                <div className="flex justify-between">
-                                                    <span>Order #{order.id}</span>
-                                                    <span>${order.total}</span>
-                                                </div>
-                                                <div className="text-sm text-gray-600">
-                                                    Items: {order.items.join(', ')}
-                                                </div>
-                                            </div>
-                                        ))}
+                    {error && (
+                        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+                            {error}
+                        </div>
+                    )}
+
+                    <div className="space-y-4">
+                        {activeOrders.map(order => (
+                            <div 
+                                key={order.id}
+                                className={`bg-white rounded-lg shadow p-4 ${
+                                    order.completed ? 'opacity-60' : ''
+                                }`}
+                                onClick={() => toggleOrderComplete(order.id)}
+                            >
+                                <div className="flex justify-between items-center mb-2">
+                                    <div className="text-xl font-bold">
+                                        Order #{order.orderNumber}
                                     </div>
-                                )}
+                                    <div className="text-gray-600">
+                                        {order.time}
+                                    </div>
+                                </div>
+
+                                <ul className="space-y-2">
+                                    {order.items.map((item, index) => (
+                                        <li 
+                                            key={index}
+                                            className="text-lg flex items-center"
+                                        >
+                                            <span className="font-bold mr-2">
+                                                {item.quantity}x
+                                            </span>
+                                            <span>
+                                                {item.name}
+                                                {item.variant && ` (${item.variant})`}
+                                            </span>
+                                            {item.comment && (
+                                                <span className="ml-2 text-gray-600 italic">
+                                                    - {item.comment}
+                                                </span>
+                                            )}
+                                        </li>
+                                    ))}
+                                </ul>
+
+                                <div className="mt-2 flex justify-end">
+                                    <button 
+                                        className={`px-4 py-2 rounded ${
+                                            order.completed 
+                                                ? 'bg-gray-300 hover:bg-gray-400' 
+                                                : 'bg-green-500 hover:bg-green-600 text-white'
+                                        }`}
+                                    >
+                                        {order.completed ? 'Completed' : 'Mark Complete'}
+                                    </button>
+                                </div>
                             </div>
-                        )}
+                        ))}
                     </div>
                 </div>
             );
         }
 
-        ReactDOM.render(<OrderDisplay />, document.getElementById('root'));
+        ReactDOM.render(<OrdersDisplay />, document.getElementById('root'));
     </script>
 </body>
 </html>
