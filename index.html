@@ -39,6 +39,13 @@
     <div id="root"></div>
 
     <script type="text/babel">
+        function formatTimeDiff(timestamp) {
+            if (!timestamp) return '';
+            const diff = Math.floor((new Date() - new Date(timestamp)) / 1000);
+            if (diff < 60) return `${diff} seconds ago`;
+            if (diff < 3600) return `${Math.floor(diff / 60)} minutes ago`;
+            return `${Math.floor(diff / 3600)} hours ago`;
+        }
         // [Previous React components remain the same but with updated styling]
         function StatusInfo({ lastOrderTime, lastUpdateTime, isLoading }) {
             const formatTimeDiff = (timestamp) => {
@@ -182,7 +189,200 @@
             );
         }
 
-        // [Rest of the OrdersDisplay component remains the same but uses the Order component]
+        function OrdersDisplay() {
+    const [orders, setOrders] = React.useState([]);
+    const [completedOrders, setCompletedOrders] = React.useState(() => {
+        const saved = localStorage.getItem('completedOrders');
+        return new Set(saved ? JSON.parse(saved) : []);
+    });
+    const [lastCompletedOrder, setLastCompletedOrder] = React.useState(null);
+    const [error, setError] = React.useState(null);
+    const [loading, setLoading] = React.useState(false);
+    const [lastUpdateTime, setLastUpdateTime] = React.useState(null);
+
+    React.useEffect(() => {
+        const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+        document.body.classList.toggle('dark-mode', mediaQuery.matches);
+        
+        const handler = (e) => {
+            document.body.classList.toggle('dark-mode', e.matches);
+        };
+        
+        mediaQuery.addListener(handler);
+        return () => mediaQuery.removeListener(handler);
+    }, []);
+
+    React.useEffect(() => {
+        localStorage.setItem('completedOrders', JSON.stringify([...completedOrders]));
+    }, [completedOrders]);
+
+    const resetCompletedOrders = () => {
+        setCompletedOrders(new Set());
+        setLastCompletedOrder(null);
+        localStorage.removeItem('completedOrders');
+    };
+
+    const undoLastComplete = () => {
+        if (lastCompletedOrder) {
+            setCompletedOrders(prev => {
+                const newSet = new Set(prev);
+                newSet.delete(lastCompletedOrder);
+                return newSet;
+            });
+            setLastCompletedOrder(null);
+        }
+    };
+
+    const clearAllOrders = () => {
+        const newCompletedOrders = new Set(completedOrders);
+        activeOrders.forEach(order => {
+            newCompletedOrders.add(order.id);
+        });
+        setCompletedOrders(newCompletedOrders);
+    };
+
+    const fetchOrders = async () => {
+        if (loading) return;
+        setLoading(true);
+        try {
+            const response = await fetch('/.netlify/functions/get-orders');
+            const data = await response.json();
+
+            if (data.status === 'success') {
+                setOrders(data.orders);
+                setError(null);
+                setLastUpdateTime(new Date().toISOString());
+            } else {
+                setError(data.message);
+            }
+        } catch (error) {
+            setError(error.message);
+        }
+        setLoading(false);
+    };
+
+    const toggleOrderComplete = async (orderId) => {
+        try {
+            const response = await fetch('/.netlify/functions/mark-complete', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ orderId }),
+            });
+
+            if (response.ok) {
+                setLastCompletedOrder(orderId);
+                setCompletedOrders(prev => {
+                    const newSet = new Set(prev);
+                    newSet.add(orderId);
+                    return newSet;
+                });
+            } else {
+                const data = await response.json();
+                setError(data.message || 'Error marking order as complete');
+            }
+        } catch (error) {
+            console.error('Error marking order complete:', error);
+            setError('Network error while marking order as complete');
+        }
+    };
+
+    React.useEffect(() => {
+        fetchOrders();
+        const interval = setInterval(fetchOrders, 5000);
+        return () => clearInterval(interval);
+    }, []);
+
+    const activeOrders = React.useMemo(() => {
+        const today = new Date().toDateString();
+        return orders
+            .filter(order => {
+                const orderDate = new Date(order.timestamp).toDateString();
+                return orderDate === today;
+            })
+            .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    }, [orders]);
+
+    const lastOrderTime = React.useMemo(() => {
+        if (activeOrders.length === 0) return null;
+        return activeOrders[0].timestamp;
+    }, [activeOrders]);
+
+    const getDailyOrderNumber = (orders, targetId) => {
+        const today = new Date().toDateString();
+        let counter = 1;
+
+        const sortedOrders = [...orders].sort((a, b) =>
+            new Date(a.timestamp) - new Date(b.timestamp)
+        );
+
+        for (const order of sortedOrders) {
+            const orderDate = new Date(order.timestamp).toDateString();
+            if (orderDate === today) {
+                if (order.id === targetId) {
+                    return counter;
+                }
+                counter++;
+            }
+        }
+        return null;
+    };
+
+    const visibleOrders = activeOrders.filter(order => !completedOrders.has(order.id));
+
+    const hasCompletedOrders = React.useMemo(() => {
+        const today = new Date().toDateString();
+        return orders.some(order => {
+            const orderDate = new Date(order.timestamp).toDateString();
+            return orderDate === today && completedOrders.has(order.id);
+        });
+    }, [orders, completedOrders]);
+
+    return (
+        <div className="p-4 max-w-4xl mx-auto">
+            <Header
+                onReset={resetCompletedOrders}
+                onClearAll={clearAllOrders}
+                hasCompletedOrders={hasCompletedOrders}
+                hasActiveOrders={visibleOrders.length > 0}
+                activeOrderCount={visibleOrders.length}
+            />
+
+            <StatusInfo
+                lastOrderTime={lastOrderTime}
+                lastUpdateTime={lastUpdateTime}
+                isLoading={loading}
+            />
+
+            {error && (
+                <div className="border-2 border-white px-4 py-3 mb-4">
+                    {error}
+                </div>
+            )}
+
+            {lastCompletedOrder && (
+                <button
+                    onClick={undoLastComplete}
+                    className="mb-4 text-xl border-b-2 border-white"
+                >
+                    Undo last completion
+                </button>
+            )}
+
+            <div className="space-y-4">
+                {visibleOrders.map(order => (
+                    <Order
+                        key={order.id}
+                        order={order}
+                        orderNumber={getDailyOrderNumber(orders, order.id)}
+                        onComplete={toggleOrderComplete}
+                    />
+                ))}
+            </div>
+        </div>
+    );
+}
         
         ReactDOM.render(<OrdersDisplay />, document.getElementById('root'));
     </script>
