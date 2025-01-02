@@ -61,8 +61,17 @@ exports.handler = async function(event, context) {
 
         const { purchases } = await ordersResponse.json();
 
+        // Log raw purchases for debugging
+        console.log('Raw Purchases:', JSON.stringify(purchases, null, 2));
+
         // Process and format orders
         const formattedOrders = (purchases || []).map(purchase => {
+            // Ensure purchase has required fields
+            if (!purchase || !purchase.timestamp || !purchase.products || !purchase.amount) {
+                console.warn('Skipping invalid purchase:', purchase);
+                return null;
+            }
+
             // Format timestamp to local time
             const orderTime = new Date(purchase.timestamp);
             
@@ -82,11 +91,12 @@ exports.handler = async function(event, context) {
                     quantity: product.quantity,
                     unitPrice: (product.unitPrice / 100).toFixed(2)
                 })),
-                status: purchase.status.toLowerCase(),
+                status: purchase.status ? purchase.status.toLowerCase() : 'unknown', // Handle missing status
                 total: (purchase.amount / 100).toFixed(2),
                 paymentType: purchase.payments?.[0]?.type || 'Unknown'
             };
-        }).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)); // Most recent first
+        }).filter(order => order !== null) // Remove invalid purchases
+          .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)); // Most recent first
 
         // Calculate some stats
         const stats = {
