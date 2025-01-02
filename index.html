@@ -75,7 +75,7 @@
 
         function Header({ onReset, onClearAll, onUndo, hasCompletedOrders, hasActiveOrders, activeOrderCount, canUndo }) {
             const [time, setTime] = React.useState(new Date());
-            const version = "2.1";
+            const version = "2.2";
 
             React.useEffect(() => {
                 const timer = setInterval(() => {
@@ -216,13 +216,42 @@
             const [loading, setLoading] = React.useState(false);
             const [lastUpdateTime, setLastUpdateTime] = React.useState(null);
             const [previousOrderCount, setPreviousOrderCount] = React.useState(0);
-            const audioRef = React.useRef(new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBkCY2fPIeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBTmP0/PLgzMGHm7A7+OZRA0PVqzn77BdGAhBmd3yvHIlBCx+zPLaizsIGGS57OihUBELTKXh8bllHgY8ltbyx3wqBSF1xe/glEELFFuy6OyrWBUIQ5zd8sFuJAU2jdDyzIU2Bhxsvv3mmUYODlOq5O+yYBoGPpfa8sF2KAQpfMrw25A+CRZhterqpVITCkmi3vK+aiEGN4rO8c2INQYba77t5JtIDgxPqOHutWIdBjiT1/DBeSoEJnnI79yTQgsUXrLn6qhWFQdBmt7ywG0iBjWIzPDOijcHGWm87OWdSxAKTKXf77llIAU2kNTvw3wtBSR3xu7dlUERCVyx5uqrWRYGPJjb8MNwJQUyhMnv0I46CRVjtunorFoXBjiU2O/Ed0AKFmS25+msWxgGOZPY78R3QAoWY7Xn6axbGAY4k9jvxHdAChZjtufprFsYBjiT2O/Ed0AKFmO15+msWxgGOZPY78R3QAoWY7Xn6axbGAY5k9jvxHdAChZjtufprFsYBjiT2O/Ed0AKFmO15+msWxgGOZPY78R3QAoWY7Xn6axbGAY4k9jvxHdAChZjtufprFsYBjiT2O/Ed0AKFmO15+msWxgGOZPY78R3QAoWY7Xn6axbGAY5k9jvxHdAChZjtufprFsYBjiT2O/Ed0AKFmO15+msWxgGOZPY78R3QAoWY7Xn6axbGAY4k9jvxHdAChZjtufprFsYBjiT2O/Ed0AKFmO15+msWxgGOZPY78R3QAoWY7Xn6axbGAY5k9jvxHdAChZjtufprFsYBjiT2O/Ed0AKFmO15+msWxgGOZPY78R3QAoWY7Xn6axbGAY4k9jvxHdAChZjtufprFsYBjiT2O/Ed0AKFmO15+msWxgGOZPY78R3QAoWY7Xn6axbGAY5k9jvxHdAChZjtufprFsYBjiT2O/Ed0AKFmO15+msWxgGOZPY78R3QAoWY7Xn6axbGAY4k9jvxHdAChZjtufprFsYBjiT2O/Ed0AKFmO15+msWxgGOZPY78R3QAoWY7Xn6axbGAY5k9jvxHdAChZjtufprFsYBjiT2O/Ed0AKFmO15+msWxgGOZPY78R3QAoWY7Xn6axbGAY4k9jvxHdAChZjtufprFsYBjiT2O/Ed0AKFmO15+msWxgGOZPY78R3QAoWY7Xn6axbGAY5k9jvxHdAChZjtufprFsYBjiT2O/Ed0AKFmO15+msWxgGOZPY78R3QAoWY7Xn6axbGAY4k9jvxHdAChZjtufprFsYBjiT2O/Ed0AKFmO15+msWxgGOZPY78R3QAoWY7Xn6axbGAY5k9jvxHdAChZjtufprFsYBjiT2O/Ed0AKFmO15+msWxgGOZPY78R3QAoWY7Xn6axbGAY4k9jvxHdAChZjtufprFsYBjiT2O/Ed0AKFmO15+msWxgGOZPY78R3QAoWY7Xn6axbGAY5k9jvxHdAChZjtufprFsYBjiT2O/Ed0AKFmO15+msWxgGOZPY78R3QAoWY7Xn6axbGAY4k9jvxHdACgAAAA=='));  // Base64 beep sound truncated for brevity
+            const audioContextRef = React.useRef(null);
+            const playNotificationSound = () => {
+                try {
+                    // Initialize AudioContext on first user interaction
+                    if (!audioContextRef.current) {
+                        audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
+                    }
+                    
+                    const context = audioContextRef.current;
+                    const oscillator = context.createOscillator();
+                    const gainNode = context.createGain();
+                    
+                    oscillator.connect(gainNode);
+                    gainNode.connect(context.destination);
+                    
+                    // Set sound parameters
+                    oscillator.type = 'sine';
+                    oscillator.frequency.setValueAtTime(440, context.currentTime); // A4 note
+                    gainNode.gain.setValueAtTime(0.1, context.currentTime); // Lower volume
+                    
+                    // Start and stop the sound
+                    oscillator.start(context.currentTime);
+                    oscillator.stop(context.currentTime + 0.2); // Short beep
+                    
+                    // Fade out
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 0.2);
+                } catch (error) {
+                    console.error('Error playing notification:', error);
+                }
+            };  // Base64 beep sound truncated for brevity
 
             // Detect new orders and play sound
             React.useEffect(() => {
                 const visibleOrderCount = activeOrders.filter(order => !completedOrders.has(order.id)).length;
                 if (visibleOrderCount > previousOrderCount) {
-                    audioRef.current.play().catch(e => console.log('Audio play failed:', e));
+                    playNotificationSound();
                 }
                 setPreviousOrderCount(visibleOrderCount);
             }, [activeOrders, completedOrders]);
