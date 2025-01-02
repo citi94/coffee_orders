@@ -8,26 +8,34 @@
     <script src="https://unpkg.com/babel-standalone@6.26.0/babel.min.js"></script>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <style>
-        /* E-ink friendly styles */
         body {
             background-color: #ffffff;
             color: #000000;
         }
         .order-card {
             border: 2px solid #000000;
-            margin-bottom: 1rem;
-            padding: 1rem;
+            margin-bottom: 1.5rem;
+            padding: 1.5rem;
         }
         .header-card {
             border: 2px solid #000000;
-            margin-bottom: 1rem;
-            padding: 1rem;
+            margin-bottom: 1.5rem;
+            padding: 1.5rem;
         }
         button {
             border: 2px solid #000000;
         }
+        .order-number {
+            font-size: 2.5rem;
+            font-weight: 800;
+            line-height: 1;
+        }
+        .main-text {
+            font-weight: 500;
+        }
         .secondary-text {
             color: #404040;
+            font-weight: 500;
         }
     </style>
 </head>
@@ -44,19 +52,11 @@
         }
 
         function StatusInfo({ lastOrderTime, lastUpdateTime, isLoading }) {
-            const formatTimeDiff = (timestamp) => {
-                if (!timestamp) return 'Never';
-                const diff = Math.floor((new Date() - new Date(timestamp)) / 1000);
-                if (diff < 60) return `${diff} seconds ago`;
-                if (diff < 3600) return `${Math.floor(diff / 60)} minutes ago`;
-                return `${Math.floor(diff / 3600)} hours ago`;
-            };
-
             const timeSinceLastUpdate = lastUpdateTime ? 
                 Math.floor((new Date() - new Date(lastUpdateTime)) / 1000) : 0;
 
             return (
-                <div className="text-lg mt-2 flex justify-between items-center">
+                <div className="text-xl mb-4 main-text">
                     <div>Last Order: {formatTimeDiff(lastOrderTime)}</div>
                     {timeSinceLastUpdate > 30 && (
                         <div>Last Update: {formatTimeDiff(lastUpdateTime)}</div>
@@ -80,18 +80,18 @@
 
             return (
                 <div className="header-card">
-                    <div className="flex justify-between items-start">
+                    <div className="flex justify-between items-start mb-6">
                         <div>
-                            <h1 className="text-4xl font-bold mb-2">Middle Street Coffee</h1>
-                            <div className="text-xl">{dayName}</div>
-                            <div className="text-lg">Version: {version}</div>
+                            <h1 className="text-5xl font-bold mb-3">Middle Street Coffee</h1>
+                            <div className="text-2xl font-medium">{dayName}</div>
+                            <div className="text-xl">Version: {version}</div>
                             {activeOrderCount > 0 && (
-                                <div className="text-xl font-bold mt-2">
+                                <div className="text-2xl font-bold mt-3">
                                     Active Orders: {activeOrderCount}
                                 </div>
                             )}
                         </div>
-                        <div className="text-3xl font-bold">
+                        <div className="text-4xl font-bold">
                             {time.toLocaleTimeString('en-US', {
                                 hour12: false,
                                 hour: '2-digit',
@@ -100,11 +100,11 @@
                         </div>
                     </div>
                     
-                    <div className="flex gap-4 mt-4">
+                    <div className="flex gap-6 mt-6">
                         {hasCompletedOrders && (
                             <button
                                 onClick={onReset}
-                                className="px-4 py-2 text-lg"
+                                className="px-6 py-3 text-xl"
                             >
                                 Reset Completed Orders
                             </button>
@@ -112,7 +112,7 @@
                         {hasActiveOrders && (
                             <button
                                 onClick={onClearAll}
-                                className="px-4 py-2 text-lg"
+                                className="px-6 py-3 text-xl"
                             >
                                 Clear All Orders
                             </button>
@@ -122,61 +122,55 @@
             );
         }
 
-        function OrderItem({ item }) {
-            return (
-                <li className="text-xl flex items-start mb-4">
-                    <span className="font-bold mr-4 text-2xl min-w-[3rem]">
-                        {item.quantity}x
-                    </span>
-                    <div>
-                        <span>{item.name}</span>
-                        {item.variant && (
-                            <span className="secondary-text">
-                                {' - '}
-                                {item.variant}
-                            </span>
-                        )}
-                        {item.comment && (
-                            <div className="secondary-text text-lg">
-                                {item.comment}
-                            </div>
-                        )}
-                    </div>
-                </li>
-            );
-        }
-
         function Order({ order, orderNumber, onComplete }) {
             return (
                 <div className="order-card">
-                    <div className="flex justify-between items-start mb-4">
-                        <div className="text-2xl font-bold">
+                    <div className="flex justify-between items-start mb-6">
+                        <div className="order-number">
                             No. {orderNumber}
                         </div>
                         <div className="text-right">
-                            <div className="text-xl">
+                            <div className="text-xl font-medium">
                                 {new Date(order.timestamp).toLocaleTimeString('en-US', {
                                     hour12: false,
                                     hour: '2-digit',
                                     minute: '2-digit'
                                 })}
                             </div>
-                            <div className="secondary-text">
+                            <div className="secondary-text text-lg">
                                 {formatTimeDiff(order.timestamp)}
                             </div>
                         </div>
                     </div>
 
-                    <ul className="mb-4">
+                    <ul className="mb-6 space-y-4">
                         {order.items.map((item, index) => (
-                            <OrderItem key={index} item={item} />
+                            <li key={index} className="text-xl flex items-start">
+                                <span className="font-bold mr-6 text-3xl min-w-[3rem]">
+                                    {item.quantity}x
+                                </span>
+                                <div className="main-text">
+                                    <span className="text-2xl">{item.name}</span>
+                                    {item.variant && (
+                                        <span className="secondary-text text-xl">
+                                            {' - '}
+                                            {item.variant}
+                                        </span>
+                                    )}
+                                    {item.comment && (
+                                        <div className="secondary-text text-xl mt-1">
+                                            {item.comment}
+                                        </div>
+                                    )}
+                                </div>
+                            </li>
                         ))}
                     </ul>
 
                     <div className="flex justify-end">
                         <button
                             onClick={() => onComplete(order.id)}
-                            className="px-4 py-2 text-lg"
+                            className="px-6 py-3 text-xl"
                         >
                             Mark Complete
                         </button>
@@ -333,7 +327,7 @@
                     />
 
                     {error && (
-                        <div className="border-2 border-black px-4 py-3 mb-4">
+                        <div className="border-2 border-black px-4 py-3 mb-4 text-xl">
                             {error}
                         </div>
                     )}
@@ -348,7 +342,7 @@
                                 });
                                 setLastCompletedOrder(null);
                             }}
-                            className="mb-4 text-xl border-2 border-black px-4 py-2"
+                            className="mb-4 px-6 py-3 text-xl"
                         >
                             Undo last completion
                         </button>
