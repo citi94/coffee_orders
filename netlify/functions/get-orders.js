@@ -2,7 +2,7 @@ const fetch = require('node-fetch');
 
 exports.handler = async function(event, context) {
     try {
-        // Step 1: Get access token following the documented approach
+        // Get access token
         const tokenResponse = await fetch('https://oauth.zettle.com/token', {
             method: 'POST',
             headers: {
@@ -15,36 +15,14 @@ exports.handler = async function(event, context) {
             }).toString()
         });
 
-        const tokenText = await tokenResponse.text();
-        console.log('Token response:', tokenText);
+        const { access_token } = await tokenResponse.json();
 
-        if (!tokenResponse.ok) {
-            return {
-                statusCode: 200,
-                body: JSON.stringify({
-                    status: 'error',
-                    stage: 'getting_token',
-                    message: 'Failed to get access token',
-                    details: tokenText,
-                    debug: {
-                        statusCode: tokenResponse.status,
-                        requestDetails: {
-                            endpoint: 'oauth.zettle.com/token',
-                            grantType: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-                            clientIdLength: process.env.ZETTLE_CLIENT_ID?.length,
-                            assertionLength: process.env.ZETTLE_CLIENT_SECRET?.length
-                        }
-                    },
-                    timestamp: new Date().toISOString()
-                })
-            };
-        }
+        // Get today's orders
+        const startOfDay = new Date();
+        startOfDay.setHours(0, 0, 0, 0);
 
-        const { access_token } = JSON.parse(tokenText);
-
-        // Step 2: Use the access token to get orders
         const ordersResponse = await fetch(
-            'https://purchase.izettle.com/purchases/v2', 
+            `https://purchase.izettle.com/purchases/v2?startDate=${startOfDay.toISOString()}`, 
             {
                 headers: {
                     'Authorization': `Bearer ${access_token}`
@@ -52,31 +30,30 @@ exports.handler = async function(event, context) {
             }
         );
 
-        const ordersText = await ordersResponse.text();
-        console.log('Orders response:', ordersText);
+        const { purchases } = await ordersResponse.json();
 
-        if (!ordersResponse.ok) {
-            return {
-                statusCode: 200,
-                body: JSON.stringify({
-                    status: 'error',
-                    stage: 'fetching_orders',
-                    message: 'Failed to fetch orders',
-                    details: ordersText,
-                    tokenUsed: access_token.substring(0, 10) + '...',
-                    timestamp: new Date().toISOString()
-                })
-            };
-        }
-
-        const ordersData = JSON.parse(ordersText);
+        // Format orders for barista display
+        const formattedOrders = (purchases || []).map(purchase => ({
+            id: purchase.purchaseUUID,
+            orderNumber: purchase.purchaseNumber || 'Unknown',
+            time: new Date(purchase.timestamp).toLocaleTimeString(),
+            timestamp: purchase.timestamp, // Keep full timestamp for sorting
+            items: purchase.products.map(product => ({
+                name: product.name,
+                quantity: product.quantity,
+                variant: product.variantName || '',  // In case drinks have variants
+                comment: product.comment || ''       // Any special instructions
+            })),
+            completed: false  // Add a completed flag for baristas to check off
+        }))
+        .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)); // Most recent first
 
         return {
             statusCode: 200,
             body: JSON.stringify({
                 status: 'success',
-                orders: ordersData.purchases || [],
-                timestamp: new Date().toISOString()
+                orders: formattedOrders,
+                lastUpdated: new Date().toLocaleTimeString()
             })
         };
 
