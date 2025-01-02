@@ -6,16 +6,8 @@
     <script src="https://unpkg.com/react@17/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@17/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/babel-standalone@6.26.0/babel.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.1/lucide.min.js"></script>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <style>
-        @keyframes highlight {
-            0% { background-color: rgba(147, 197, 253, 0.4); }
-            100% { background-color: transparent; }
-        }
-        .new-order {
-            animation: highlight 2s ease-out;
-        }
         @media (prefers-color-scheme: dark) {
             .dark-mode {
                 background-color: #1a1a1a;
@@ -30,30 +22,12 @@
                 color: #ffffff;
             }
         }
-        .spin {
-            animation: spin 1s linear infinite;
-        }
-        @keyframes spin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-        }
     </style>
 </head>
 <body class="bg-gray-100 dark:bg-gray-900">
     <div id="root"></div>
-    <audio id="notification" preload="auto">
-        <source src="data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQwAAAAAAAAAAAAAAAAAAAAAAASW5mbwAAAA8AAAASAAAiAAYGB..." type="audio/mpeg">
-    </audio>
 
     <script type="text/babel">
-        function RefreshIcon({ isLoading }) {
-            return (
-                <svg className={`w-4 h-4 ${isLoading ? 'spin' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-            );
-        }
-
         function StatusInfo({ lastOrderTime, lastUpdateTime, isLoading }) {
             const formatTimeDiff = (timestamp) => {
                 if (!timestamp) return 'Never';
@@ -63,13 +37,15 @@
                 return `${Math.floor(diff / 3600)} hours ago`;
             };
 
+            const timeSinceLastUpdate = lastUpdateTime ? 
+                Math.floor((new Date() - new Date(lastUpdateTime)) / 1000) : 0;
+
             return (
                 <div className="text-sm text-gray-600 dark:text-gray-400 mt-1 flex justify-between items-center">
                     <div>Last Order: {formatTimeDiff(lastOrderTime)}</div>
-                    <div className="flex items-center gap-2">
-                        <RefreshIcon isLoading={isLoading} />
-                        Last Update: {formatTimeDiff(lastUpdateTime)}
-                    </div>
+                    {timeSinceLastUpdate > 30 && (
+                        <div>Last Update: {formatTimeDiff(lastUpdateTime)}</div>
+                    )}
                 </div>
             );
         }
@@ -81,7 +57,7 @@
             React.useEffect(() => {
                 const timer = setInterval(() => {
                     setTime(new Date());
-                }, 1000);
+                }, 60000); // Update every minute instead of every second
                 return () => clearInterval(timer);
             }, []);
 
@@ -117,8 +93,7 @@
                                 {time.toLocaleTimeString('en-US', {
                                     hour12: false,
                                     hour: '2-digit',
-                                    minute: '2-digit',
-                                    second: '2-digit'
+                                    minute: '2-digit'
                                 })}
                             </div>
                         </div>
@@ -127,7 +102,7 @@
                             {hasCompletedOrders && (
                                 <button
                                     onClick={handleReset}
-                                    className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-lg transition-colors duration-200"
+                                    className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-lg"
                                 >
                                     Reset Completed Orders
                                 </button>
@@ -135,7 +110,7 @@
                             {hasActiveOrders && (
                                 <button
                                     onClick={handleClearAll}
-                                    className="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg text-lg transition-colors duration-200"
+                                    className="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg text-lg"
                                 >
                                     Clear All Orders
                                 </button>
@@ -156,15 +131,6 @@
             const [error, setError] = React.useState(null);
             const [loading, setLoading] = React.useState(false);
             const [lastUpdateTime, setLastUpdateTime] = React.useState(null);
-            const [newOrderIds, setNewOrderIds] = React.useState(new Set());
-            const notificationSound = document.getElementById('notification');
-
-            const playNotification = () => {
-                if (notificationSound) {
-                    notificationSound.currentTime = 0;
-                    notificationSound.play().catch(e => console.log('Notification sound error:', e));
-                }
-            };
 
             React.useEffect(() => {
                 const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
@@ -207,6 +173,14 @@
                 setCompletedOrders(newCompletedOrders);
             };
 
+            const formatTimeDiff = (timestamp) => {
+                if (!timestamp) return '';
+                const diff = Math.floor((new Date() - new Date(timestamp)) / 1000);
+                if (diff < 60) return `${diff} seconds ago`;
+                if (diff < 3600) return `${Math.floor(diff / 60)} minutes ago`;
+                return `${Math.floor(diff / 3600)} hours ago`;
+            };
+
             const fetchOrders = async () => {
                 if (loading) return;
                 setLoading(true);
@@ -215,18 +189,6 @@
                     const data = await response.json();
 
                     if (data.status === 'success') {
-                        // Check for new orders
-                        const currentOrderIds = new Set(orders.map(o => o.id));
-                        const newOrders = data.orders.filter(o => !currentOrderIds.has(o.id));
-                        
-                        if (newOrders.length > 0) {
-                            playNotification();
-                            setNewOrderIds(new Set(newOrders.map(o => o.id)));
-                            setTimeout(() => {
-                                setNewOrderIds(new Set());
-                            }, 2000);
-                        }
-
                         setOrders(data.orders);
                         setError(null);
                         setLastUpdateTime(new Date().toISOString());
@@ -342,7 +304,7 @@
                     {lastCompletedOrder && (
                         <button
                             onClick={undoLastComplete}
-                            className="mb-4 text-blue-600 dark:text-blue-400 hover:underline"
+                            className="mb-4 text-blue-600 dark:text-blue-400"
                         >
                             Undo last completion
                         </button>
@@ -352,21 +314,23 @@
                         {visibleOrders.map(order => (
                             <div
                                 key={order.id}
-                                className={`bg-white dark:bg-gray-800 rounded-lg shadow p-4 order-card transition-all duration-300 ${
-                                    newOrderIds.has(order.id) ? 'new-order' : ''
-                                }`}
+                                className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 order-card"
                             >
                                 <div className="flex justify-between items-center mb-2">
                                     <div className="text-2xl font-bold dark:text-white">
                                         No. {getDailyOrderNumber(orders, order.id)}
                                     </div>
-                                    <div className="text-lg text-gray-600 dark:text-gray-400">
-                                        {new Date(order.timestamp).toLocaleTimeString('en-US', {
-                                            hour12: false,
-                                            hour: '2-digit',
-                                            minute: '2-digit',
-                                            second: '2-digit'
-                                        })}
+                                    <div className="text-lg text-gray-600 dark:text-gray-400 flex flex-col items-end">
+                                        <div>
+                                            {new Date(order.timestamp).toLocaleTimeString('en-US', {
+                                                hour12: false,
+                                                hour: '2-digit',
+                                                minute: '2-digit'
+                                            })}
+                                        </div>
+                                        <div className="text-sm">
+                                            {formatTimeDiff(order.timestamp)}
+                                        </div>
                                     </div>
                                 </div>
 
@@ -400,7 +364,7 @@
                                 <div className="mt-4 flex justify-end">
                                     <button
                                         onClick={() => toggleOrderComplete(order.id)}
-                                        className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-lg transition-colors duration-200"
+                                        className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-lg"
                                     >
                                         Mark Complete
                                     </button>
