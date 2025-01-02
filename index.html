@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Barista Orders</title>
+    <title>Middle Street Coffee</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <script src="https://unpkg.com/react@17/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@17/umd/react-dom.production.min.js"></script>
@@ -12,9 +12,9 @@
     <div id="root"></div>
 
     <script type="text/babel">
-        function Clock() {
+        function Header() {
             const [time, setTime] = React.useState(new Date());
-
+            
             React.useEffect(() => {
                 const timer = setInterval(() => {
                     setTime(new Date());
@@ -22,9 +22,18 @@
                 return () => clearInterval(timer);
             }, []);
 
+            // Get day name
+            const dayName = time.toLocaleDateString('en-US', { weekday: 'long' });
+
             return (
-                <div className="text-2xl font-bold">
-                    {time.toLocaleTimeString()}
+                <div className="flex justify-between items-center mb-4 bg-white p-4 rounded-lg shadow">
+                    <div className="flex flex-col">
+                        <h1 className="text-3xl font-bold">Middle Street Coffee</h1>
+                        <div className="text-gray-600 text-lg">{dayName}</div>
+                    </div>
+                    <div className="text-2xl font-bold">
+                        {time.toLocaleTimeString()}
+                    </div>
                 </div>
             );
         }
@@ -34,6 +43,21 @@
             const [lastUpdated, setLastUpdated] = React.useState('');
             const [error, setError] = React.useState(null);
             const [loading, setLoading] = React.useState(false);
+            const [dailyOrderCount, setDailyOrderCount] = React.useState({});
+
+            // Function to get daily order number
+            const getDailyOrderNumber = (timestamp, orderNumber) => {
+                const dateKey = new Date(timestamp).toDateString();
+                if (!dailyOrderCount[dateKey]) {
+                    dailyOrderCount[dateKey] = {};
+                }
+                if (!dailyOrderCount[dateKey][orderNumber]) {
+                    const count = Object.keys(dailyOrderCount[dateKey]).length + 1;
+                    dailyOrderCount[dateKey][orderNumber] = count;
+                    setDailyOrderCount({...dailyOrderCount});
+                }
+                return dailyOrderCount[dateKey][orderNumber];
+            };
 
             // Function to mark order as completed
             const toggleOrderComplete = (orderId) => {
@@ -46,9 +70,7 @@
 
             // Fetch orders
             const fetchOrders = async () => {
-                // Don't fetch if we're already loading
                 if (loading) return;
-                
                 setLoading(true);
                 try {
                     const response = await fetch('/.netlify/functions/get-orders');
@@ -67,14 +89,12 @@
                 setLoading(false);
             };
 
-            // Fetch on load and every 5 seconds
             React.useEffect(() => {
                 fetchOrders();
-                const interval = setInterval(fetchOrders, 5000); // 5-second refresh
+                const interval = setInterval(fetchOrders, 5000);
                 return () => clearInterval(interval);
             }, []);
 
-            // Filter out completed orders after 5 minutes
             const activeOrders = orders.filter(order => 
                 !order.completed || 
                 (new Date() - new Date(order.timestamp)) < 5 * 60 * 1000
@@ -82,15 +102,7 @@
 
             return (
                 <div className="p-4 max-w-4xl mx-auto">
-                    <div className="flex justify-between items-center mb-4 bg-white p-4 rounded-lg shadow">
-                        <div className="flex items-center space-x-4">
-                            <h1 className="text-3xl font-bold">Orders</h1>
-                            <div className="text-gray-600">
-                                Last update: {lastUpdated}
-                            </div>
-                        </div>
-                        <Clock />
-                    </div>
+                    <Header />
 
                     {error && (
                         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
@@ -109,10 +121,10 @@
                             >
                                 <div className="flex justify-between items-center mb-2">
                                     <div className="text-2xl font-bold">
-                                        Order #{order.orderNumber}
+                                        No. {getDailyOrderNumber(order.timestamp, order.orderNumber)}
                                     </div>
                                     <div className="text-lg text-gray-600">
-                                        {order.time}
+                                        {new Date(order.timestamp).toLocaleTimeString()}
                                     </div>
                                 </div>
 
@@ -120,20 +132,24 @@
                                     {order.items.map((item, index) => (
                                         <li 
                                             key={index}
-                                            className="text-xl flex items-center"
+                                            className="text-xl flex items-start"
                                         >
-                                            <span className="font-bold mr-3 text-2xl">
+                                            <span className="font-bold mr-3 text-2xl min-w-[2.5rem]">
                                                 {item.quantity}x
                                             </span>
                                             <span>
                                                 {item.name}
-                                                {item.variant && ` (${item.variant})`}
+                                                {item.variant && (
+                                                    <span className="text-gray-600 italic">
+                                                        {' - '}{item.variant}
+                                                    </span>
+                                                )}
+                                                {item.comment && (
+                                                    <span className="text-gray-600 italic block ml-1">
+                                                        {item.comment}
+                                                    </span>
+                                                )}
                                             </span>
-                                            {item.comment && (
-                                                <span className="ml-2 text-gray-600 italic">
-                                                    - {item.comment}
-                                                </span>
-                                            )}
                                         </li>
                                     ))}
                                 </ul>
@@ -143,7 +159,7 @@
                                         className={`px-6 py-2 rounded-lg text-lg transition-colors duration-200 ${
                                             order.completed 
                                                 ? 'bg-gray-300 hover:bg-gray-400' 
-                                                : 'bg-green-500 hover:bg-green-600 text-white'
+                                                : 'bg-emerald-500 hover:bg-emerald-600 text-white'
                                         }`}
                                     >
                                         {order.completed ? 'Completed' : 'Mark Complete'}
