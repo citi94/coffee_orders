@@ -12,10 +12,28 @@
     <div id="root"></div>
 
     <script type="text/babel">
+        function Clock() {
+            const [time, setTime] = React.useState(new Date());
+
+            React.useEffect(() => {
+                const timer = setInterval(() => {
+                    setTime(new Date());
+                }, 1000);
+                return () => clearInterval(timer);
+            }, []);
+
+            return (
+                <div className="text-2xl font-bold">
+                    {time.toLocaleTimeString()}
+                </div>
+            );
+        }
+
         function OrdersDisplay() {
             const [orders, setOrders] = React.useState([]);
             const [lastUpdated, setLastUpdated] = React.useState('');
             const [error, setError] = React.useState(null);
+            const [loading, setLoading] = React.useState(false);
 
             // Function to mark order as completed
             const toggleOrderComplete = (orderId) => {
@@ -28,6 +46,10 @@
 
             // Fetch orders
             const fetchOrders = async () => {
+                // Don't fetch if we're already loading
+                if (loading) return;
+                
+                setLoading(true);
                 try {
                     const response = await fetch('/.netlify/functions/get-orders');
                     const data = await response.json();
@@ -42,12 +64,13 @@
                 } catch (error) {
                     setError(error.message);
                 }
+                setLoading(false);
             };
 
-            // Fetch on load and every 30 seconds
+            // Fetch on load and every 5 seconds
             React.useEffect(() => {
                 fetchOrders();
-                const interval = setInterval(fetchOrders, 30000);
+                const interval = setInterval(fetchOrders, 5000); // 5-second refresh
                 return () => clearInterval(interval);
             }, []);
 
@@ -59,11 +82,14 @@
 
             return (
                 <div className="p-4 max-w-4xl mx-auto">
-                    <div className="flex justify-between items-center mb-4">
-                        <h1 className="text-3xl font-bold">Orders</h1>
-                        <div className="text-gray-600">
-                            Last updated: {lastUpdated}
+                    <div className="flex justify-between items-center mb-4 bg-white p-4 rounded-lg shadow">
+                        <div className="flex items-center space-x-4">
+                            <h1 className="text-3xl font-bold">Orders</h1>
+                            <div className="text-gray-600">
+                                Last update: {lastUpdated}
+                            </div>
                         </div>
+                        <Clock />
                     </div>
 
                     {error && (
@@ -76,27 +102,27 @@
                         {activeOrders.map(order => (
                             <div 
                                 key={order.id}
-                                className={`bg-white rounded-lg shadow p-4 ${
-                                    order.completed ? 'opacity-60' : ''
+                                className={`bg-white rounded-lg shadow p-4 transition-all duration-200 ${
+                                    order.completed ? 'opacity-60' : 'hover:shadow-lg'
                                 }`}
                                 onClick={() => toggleOrderComplete(order.id)}
                             >
                                 <div className="flex justify-between items-center mb-2">
-                                    <div className="text-xl font-bold">
+                                    <div className="text-2xl font-bold">
                                         Order #{order.orderNumber}
                                     </div>
-                                    <div className="text-gray-600">
+                                    <div className="text-lg text-gray-600">
                                         {order.time}
                                     </div>
                                 </div>
 
-                                <ul className="space-y-2">
+                                <ul className="space-y-3">
                                     {order.items.map((item, index) => (
                                         <li 
                                             key={index}
-                                            className="text-lg flex items-center"
+                                            className="text-xl flex items-center"
                                         >
-                                            <span className="font-bold mr-2">
+                                            <span className="font-bold mr-3 text-2xl">
                                                 {item.quantity}x
                                             </span>
                                             <span>
@@ -112,9 +138,9 @@
                                     ))}
                                 </ul>
 
-                                <div className="mt-2 flex justify-end">
+                                <div className="mt-3 flex justify-end">
                                     <button 
-                                        className={`px-4 py-2 rounded ${
+                                        className={`px-6 py-2 rounded-lg text-lg transition-colors duration-200 ${
                                             order.completed 
                                                 ? 'bg-gray-300 hover:bg-gray-400' 
                                                 : 'bg-green-500 hover:bg-green-600 text-white'
