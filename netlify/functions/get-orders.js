@@ -58,10 +58,8 @@ exports.handler = async function (event, context) {
     let completedOrders = [];
     try {
       const completedOrdersResponse = await client.query(
-        q.Map(
-          q.Paginate(q.Documents(q.Collection('completed_orders'))),
-          q.Lambda('ref', q.Select(['data', 'orderId'], q.Get(q.Var('ref'))))
-        )
+        q.Paginate(q.Documents(q.Collection('completed_orders')), { size: 100000 }),
+        q.Lambda(x => q.Select(['data', 'orderId'], q.Get(x)))
       );
       completedOrders = completedOrdersResponse.data;
     } catch (error) {
@@ -88,7 +86,7 @@ exports.handler = async function (event, context) {
   } catch (error) {
     console.error('Function Error:', error);
     return {
-      statusCode: 500, // Changed from 200 to 500 to indicate an error
+      statusCode: 500,
       body: JSON.stringify({
         status: 'error',
         stage: 'processing',
