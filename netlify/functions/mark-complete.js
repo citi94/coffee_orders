@@ -1,6 +1,3 @@
-const fs = require('fs');
-const path = require('path');
-
 exports.handler = async (event, context) => {
   try {
     const { orderId } = JSON.parse(event.body);
@@ -12,23 +9,13 @@ exports.handler = async (event, context) => {
       };
     }
 
-    const filePath = path.join(__dirname, 'completed_orders.json');
+    // Get current completed orders
+    let completedOrders = await context.store.get('completedOrders') || [];
     
-    // Read current completed orders
-    let completedOrders = [];
-    try {
-      const fileContent = await fs.promises.readFile(filePath, 'utf8');
-      completedOrders = JSON.parse(fileContent);
-    } catch (err) {
-      if (err.code !== 'ENOENT') {
-        throw err;
-      }
-    }
-
     // Add new order ID if it's not already there
     if (!completedOrders.includes(orderId)) {
       completedOrders.push(orderId);
-      await fs.promises.writeFile(filePath, JSON.stringify(completedOrders, null, 2));
+      await context.store.set('completedOrders', completedOrders);
     }
 
     return {
