@@ -9,20 +9,12 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // Get current completed orders
-    let completedOrders = await context.store.get('completedOrders') || [];
-    
-    // Add new order ID if it's not already there
-    if (!completedOrders.includes(orderId)) {
-      completedOrders.push(orderId);
-      await context.store.set('completedOrders', completedOrders);
-    }
-
     return {
       statusCode: 200,
       body: JSON.stringify({ 
         status: 'success',
-        message: 'Order marked as complete' 
+        message: 'Order marked as complete',
+        orderId: orderId
       }),
     };
   } catch (error) {
