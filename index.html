@@ -6,55 +6,55 @@
     <script src="https://unpkg.com/react@17/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@17/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/babel-standalone@6.26.0/babel.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.1/lucide.min.js"></script>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <style>
-        @media (prefers-color-scheme: dark) {
-            body {
-                background-color: #1f2937;
-                color: #e5e7eb;
-            }
-            .bg-white {
-                background-color: #374151;
-                color: #e5e7eb;
-            }
-            .bg-gray-100 {
-                background-color: #4b5563;
-            }
-            .text-gray-600 {
-                color: #d1d5db;
-            }
-            .border-gray-400 {
-                border-color: #6b7280;
-            }
-            .bg-red-100 {
-                background-color: #991b1b;
-            }
-            .text-red-700 {
-                color: #fee2e2;
-            }
-        }
-        .new-order-highlight {
-            animation: highlight 1s ease-out;
-        }
         @keyframes highlight {
-            0% { background-color: #fefcbf; }
-            100% { background-color: inherit; }
+            0% { background-color: rgba(147, 197, 253, 0.4); }
+            100% { background-color: transparent; }
         }
-        .refresh-icon {
-            animation: rotate 1s linear infinite;
+        .new-order {
+            animation: highlight 2s ease-out;
         }
-        @keyframes rotate {
+        @media (prefers-color-scheme: dark) {
+            .dark-mode {
+                background-color: #1a1a1a;
+                color: #ffffff;
+            }
+            .dark-mode .order-card {
+                background-color: #2d2d2d;
+                color: #ffffff;
+            }
+            .dark-mode .header-card {
+                background-color: #2d2d2d;
+                color: #ffffff;
+            }
+        }
+        .spin {
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
             from { transform: rotate(0deg); }
             to { transform: rotate(360deg); }
         }
     </style>
 </head>
-<body class="bg-gray-100">
-    <audio id="notificationSound" src="notification.mp3"></audio>
+<body class="bg-gray-100 dark:bg-gray-900">
     <div id="root"></div>
+    <audio id="notification" preload="auto">
+        <source src="data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQwAAAAAAAAAAAAAAAAAAAAAAASW5mbwAAAA8AAAASAAAiAAYGB..." type="audio/mpeg">
+    </audio>
 
     <script type="text/babel">
-        function StatusInfo({ lastOrderTime, lastUpdateTime, isRefreshing }) {
+        function RefreshIcon({ isLoading }) {
+            return (
+                <svg className={`w-4 h-4 ${isLoading ? 'spin' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+            );
+        }
+
+        function StatusInfo({ lastOrderTime, lastUpdateTime, isLoading }) {
             const formatTimeDiff = (timestamp) => {
                 if (!timestamp) return 'Never';
                 const diff = Math.floor((new Date() - new Date(timestamp)) / 1000);
@@ -64,15 +64,11 @@
             };
 
             return (
-                <div className="text-sm text-gray-600 mt-1 flex justify-between items-center">
+                <div className="text-sm text-gray-600 dark:text-gray-400 mt-1 flex justify-between items-center">
                     <div>Last Order: {formatTimeDiff(lastOrderTime)}</div>
-                    <div className="flex items-center">
+                    <div className="flex items-center gap-2">
+                        <RefreshIcon isLoading={isLoading} />
                         Last Update: {formatTimeDiff(lastUpdateTime)}
-                        {isRefreshing && (
-                            <svg className="ml-2 h-4 w-4 refresh-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                            </svg>
-                        )}
                     </div>
                 </div>
             );
@@ -91,28 +87,33 @@
 
             const dayName = time.toLocaleDateString('en-US', { weekday: 'long' });
 
+            const handleReset = () => {
+                if (window.confirm('Are you sure you want to reset all completed orders?')) {
+                    onReset();
+                }
+            };
+
             const handleClearAll = () => {
                 if (window.confirm('Are you sure you want to mark all current orders as complete?')) {
                     onClearAll();
                 }
             };
 
-            const handleReset = () => {
-                if (window.confirm('Are you sure you want to reset completed orders?')) {
-                    onReset();
-                }
-            }
-
             return (
-                <div className="bg-white rounded-lg shadow mb-4">
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow mb-4 header-card">
                     <div className="p-4">
                         <div className="flex justify-between items-center">
                             <div className="flex flex-col">
-                                <h1 className="text-3xl font-bold">Middle Street Coffee</h1>
-                                <div className="text-gray-600 text-lg">{dayName}</div>
-                                <div className="text-gray-600 text-base">Version: {version}</div>
+                                <h1 className="text-3xl font-bold dark:text-white">Middle Street Coffee</h1>
+                                <div className="text-gray-600 dark:text-gray-400 text-lg">{dayName}</div>
+                                <div className="text-gray-600 dark:text-gray-400 text-base">Version: {version}</div>
+                                {activeOrderCount > 0 && (
+                                    <div className="text-blue-600 dark:text-blue-400 font-semibold">
+                                        Active Orders: {activeOrderCount}
+                                    </div>
+                                )}
                             </div>
-                            <div className="text-2xl font-bold">
+                            <div className="text-2xl font-bold dark:text-white">
                                 {time.toLocaleTimeString('en-US', {
                                     hour12: false,
                                     hour: '2-digit',
@@ -121,9 +122,7 @@
                                 })}
                             </div>
                         </div>
-                        <div className="text-gray-600 text-sm mt-2">
-                            Total Active Orders: {activeOrderCount}
-                        </div>
+                        
                         <div className="flex gap-2 mt-4">
                             {hasCompletedOrders && (
                                 <button
@@ -153,12 +152,31 @@
                 const saved = localStorage.getItem('completedOrders');
                 return new Set(saved ? JSON.parse(saved) : []);
             });
+            const [lastCompletedOrder, setLastCompletedOrder] = React.useState(null);
             const [error, setError] = React.useState(null);
             const [loading, setLoading] = React.useState(false);
             const [lastUpdateTime, setLastUpdateTime] = React.useState(null);
             const [newOrderIds, setNewOrderIds] = React.useState(new Set());
-            const [lastCompletedOrder, setLastCompletedOrder] = React.useState(null);
-            const [isRefreshing, setIsRefreshing] = React.useState(false);
+            const notificationSound = document.getElementById('notification');
+
+            const playNotification = () => {
+                if (notificationSound) {
+                    notificationSound.currentTime = 0;
+                    notificationSound.play().catch(e => console.log('Notification sound error:', e));
+                }
+            };
+
+            React.useEffect(() => {
+                const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+                document.body.classList.toggle('dark-mode', mediaQuery.matches);
+                
+                const handler = (e) => {
+                    document.body.classList.toggle('dark-mode', e.matches);
+                };
+                
+                mediaQuery.addListener(handler);
+                return () => mediaQuery.removeListener(handler);
+            }, []);
 
             React.useEffect(() => {
                 localStorage.setItem('completedOrders', JSON.stringify([...completedOrders]));
@@ -166,7 +184,19 @@
 
             const resetCompletedOrders = () => {
                 setCompletedOrders(new Set());
+                setLastCompletedOrder(null);
                 localStorage.removeItem('completedOrders');
+            };
+
+            const undoLastComplete = () => {
+                if (lastCompletedOrder) {
+                    setCompletedOrders(prev => {
+                        const newSet = new Set(prev);
+                        newSet.delete(lastCompletedOrder);
+                        return newSet;
+                    });
+                    setLastCompletedOrder(null);
+                }
             };
 
             const clearAllOrders = () => {
@@ -180,20 +210,23 @@
             const fetchOrders = async () => {
                 if (loading) return;
                 setLoading(true);
-                setIsRefreshing(true);
                 try {
                     const response = await fetch('/.netlify/functions/get-orders');
                     const data = await response.json();
 
                     if (data.status === 'success') {
-                        const newOrders = data.orders.filter(order => !orders.some(o => o.id === order.id));
+                        // Check for new orders
+                        const currentOrderIds = new Set(orders.map(o => o.id));
+                        const newOrders = data.orders.filter(o => !currentOrderIds.has(o.id));
+                        
                         if (newOrders.length > 0) {
-                            const newIds = new Set(newOrders.map(order => order.id));
-                            setNewOrderIds(newIds);
-                            document.getElementById('notificationSound').play();
-                        } else {
-                            setNewOrderIds(new Set());
+                            playNotification();
+                            setNewOrderIds(new Set(newOrders.map(o => o.id)));
+                            setTimeout(() => {
+                                setNewOrderIds(new Set());
+                            }, 2000);
                         }
+
                         setOrders(data.orders);
                         setError(null);
                         setLastUpdateTime(new Date().toISOString());
@@ -204,11 +237,9 @@
                     setError(error.message);
                 }
                 setLoading(false);
-                setIsRefreshing(false);
             };
 
             const toggleOrderComplete = async (orderId) => {
-                setLastCompletedOrder(orderId);
                 try {
                     const response = await fetch('/.netlify/functions/mark-complete', {
                         method: 'POST',
@@ -219,10 +250,11 @@
                     });
 
                     if (response.ok) {
-                        setCompletedOrders((prevCompletedOrders) => {
-                            const updatedCompletedOrders = new Set(prevCompletedOrders);
-                            updatedCompletedOrders.add(orderId);
-                            return updatedCompletedOrders;
+                        setLastCompletedOrder(orderId);
+                        setCompletedOrders(prev => {
+                            const newSet = new Set(prev);
+                            newSet.add(orderId);
+                            return newSet;
                         });
                     } else {
                         const data = await response.json();
@@ -298,26 +330,37 @@
                     <StatusInfo
                         lastOrderTime={lastOrderTime}
                         lastUpdateTime={lastUpdateTime}
-                        isRefreshing={isRefreshing}
+                        isLoading={loading}
                     />
 
                     {error && (
-                        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+                        <div className="bg-red-100 dark:bg-red-900 border border-red-400 dark:border-red-600 text-red-700 dark:text-red-200 px-4 py-3 rounded mb-4">
                             {error}
                         </div>
+                    )}
+
+                    {lastCompletedOrder && (
+                        <button
+                            onClick={undoLastComplete}
+                            className="mb-4 text-blue-600 dark:text-blue-400 hover:underline"
+                        >
+                            Undo last completion
+                        </button>
                     )}
 
                     <div className="space-y-4">
                         {visibleOrders.map(order => (
                             <div
                                 key={order.id}
-                                className={`bg-white rounded-lg shadow p-4 ${newOrderIds.has(order.id) ? 'new-order-highlight' : ''}`}
+                                className={`bg-white dark:bg-gray-800 rounded-lg shadow p-4 order-card transition-all duration-300 ${
+                                    newOrderIds.has(order.id) ? 'new-order' : ''
+                                }`}
                             >
                                 <div className="flex justify-between items-center mb-2">
-                                    <div className="text-2xl font-bold">
+                                    <div className="text-2xl font-bold dark:text-white">
                                         No. {getDailyOrderNumber(orders, order.id)}
                                     </div>
-                                    <div className="text-lg text-gray-600">
+                                    <div className="text-lg text-gray-600 dark:text-gray-400">
                                         {new Date(order.timestamp).toLocaleTimeString('en-US', {
                                             hour12: false,
                                             hour: '2-digit',
@@ -333,19 +376,19 @@
                                             key={index}
                                             className="text-xl flex items-start"
                                         >
-                                            <span className="font-bold mr-3 text-2xl min-w-[2.5rem]">
+                                            <span className="font-bold mr-3 text-2xl min-w-[2.5rem] dark:text-white">
                                                 {item.quantity}x
                                             </span>
                                             <div className="flex-1">
-                                                <span>{item.name}</span>
+                                                <span className="dark:text-white">{item.name}</span>
                                                 {item.variant && (
-                                                    <span className="text-gray-600 italic">
+                                                    <span className="text-gray-600 dark:text-gray-400 italic">
                                                         {' - '}
                                                         {item.variant}
                                                     </span>
                                                 )}
                                                 {item.comment && (
-                                                    <div className="text-gray-600 italic text-lg">
+                                                    <div className="text-gray-600 dark:text-gray-400 italic text-lg">
                                                         {item.comment}
                                                     </div>
                                                 )}
