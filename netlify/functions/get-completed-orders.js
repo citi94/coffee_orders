@@ -7,20 +7,19 @@ const client = new faunadb.Client({
 
 exports.handler = async function (event, context) {
   try {
-    // Get completed order IDs from FaunaDB
-    const completedOrdersResponse = await client.query(
+    // Simple collection scan instead of using an index
+    const result = await client.query(
       q.Map(
-        q.Paginate(q.Documents(q.Collection('completed_orders')), { size: 100000 }),
-        q.Lambda('ref', q.Select(['data', 'orderId'], q.Get(q.Var('ref'))))
+        q.Paginate(q.Documents(q.Collection('completed_orders'))),
+        q.Lambda("x", q.Select(["data", "orderId"], q.Get(q.Var("x"))))
       )
     );
-    const completedOrders = completedOrdersResponse.data;
 
     return {
       statusCode: 200,
       body: JSON.stringify({
         status: 'success',
-        completedOrders: completedOrders,
+        completedOrders: result.data || [],
       }),
     };
   } catch (error) {
@@ -29,8 +28,8 @@ exports.handler = async function (event, context) {
       statusCode: 500,
       body: JSON.stringify({
         status: 'error',
-        message: error.message,
+        message: 'Error fetching completed orders: ' + error.message,
       })
     };
   }
-};
+}
