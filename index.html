@@ -56,10 +56,18 @@
                 Math.floor((new Date() - new Date(lastUpdateTime)) / 1000) : 0;
 
             return (
-                <div className="text-xl mb-4 main-text">
-                    <div>Last Order: {formatTimeDiff(lastOrderTime)}</div>
-                    {timeSinceLastUpdate > 30 && (
-                        <div>Last Update: {formatTimeDiff(lastUpdateTime)}</div>
+                <div>
+                    <div className="text-xl mb-4 main-text">
+                        <div>Last Order: {formatTimeDiff(lastOrderTime)}</div>
+                    </div>
+                    
+                    {timeSinceLastUpdate > 60 && (
+                        <div className="border-2 border-black px-4 py-3 mb-4">
+                            <div className="text-xl font-bold">⚠️ Connection Warning</div>
+                            <div className="text-lg">
+                                Last Update: {formatTimeDiff(lastUpdateTime)}
+                            </div>
+                        </div>
                     )}
                 </div>
             );
@@ -122,7 +130,7 @@
             );
         }
 
-        function Order({ order, orderNumber, onComplete }) {
+        function Order({ order, orderNumber, onComplete, onUndo, isLastCompleted }) {
             return (
                 <div className="order-card">
                     <div className="flex justify-between items-start mb-6">
@@ -167,13 +175,23 @@
                         ))}
                     </ul>
 
-                    <div className="flex justify-end">
-                        <button
-                            onClick={() => onComplete(order.id)}
-                            className="px-6 py-3 text-xl"
-                        >
-                            Mark Complete
-                        </button>
+                    <div className="flex justify-between">
+                        {isLastCompleted && (
+                            <button
+                                onClick={onUndo}
+                                className="px-6 py-3 text-xl"
+                            >
+                                Undo Completion
+                            </button>
+                        )}
+                        <div className="ml-auto">
+                            <button
+                                onClick={() => onComplete(order.id)}
+                                className="px-6 py-3 text-xl"
+                            >
+                                Mark Complete
+                            </button>
+                        </div>
                     </div>
                 </div>
             );
@@ -189,7 +207,19 @@
             const [error, setError] = React.useState(null);
             const [loading, setLoading] = React.useState(false);
             const [lastUpdateTime, setLastUpdateTime] = React.useState(null);
+            const [previousOrderCount, setPreviousOrderCount] = React.useState(0);
+            const audioRef = React.useRef(new Audio('data:audio/wav;base64,UklGRl9vT19xUJXRFIzUDR5BRBGa69Rz...'));  // Base64 beep sound truncated for brevity
 
+            // Detect new orders and play sound
+            React.useEffect(() => {
+                const visibleOrderCount = activeOrders.filter(order => !completedOrders.has(order.id)).length;
+                if (visibleOrderCount > previousOrderCount) {
+                    audioRef.current.play().catch(e => console.log('Audio play failed:', e));
+                }
+                setPreviousOrderCount(visibleOrderCount);
+            }, [activeOrders, completedOrders]);
+
+            // Save completed orders to localStorage
             React.useEffect(() => {
                 localStorage.setItem('completedOrders', JSON.stringify([...completedOrders]));
             }, [completedOrders]);
@@ -232,6 +262,13 @@
                 setLoading(false);
             };
 
+            // Poll for orders every 5 seconds
+            React.useEffect(() => {
+                fetchOrders();
+                const interval = setInterval(fetchOrders, 5000);
+                return () => clearInterval(interval);
+            }, []);
+
             const toggleOrderComplete = async (orderId) => {
                 try {
                     const response = await fetch('/.netlify/functions/mark-complete', {
@@ -259,11 +296,16 @@
                 }
             };
 
-            React.useEffect(() => {
-                fetchOrders();
-                const interval = setInterval(fetchOrders, 5000);
-                return () => clearInterval(interval);
-            }, []);
+            const handleUndo = React.useCallback(() => {
+                if (lastCompletedOrder) {
+                    setCompletedOrders(prev => {
+                        const newSet = new Set(prev);
+                        newSet.delete(lastCompletedOrder);
+                        return newSet;
+                    });
+                    setLastCompletedOrder(null);
+                }
+            }, [lastCompletedOrder]);
 
             const activeOrders = React.useMemo(() => {
                 const today = new Date().toDateString();
@@ -332,22 +374,6 @@
                         </div>
                     )}
 
-                    {lastCompletedOrder && (
-                        <button
-                            onClick={() => {
-                                setCompletedOrders(prev => {
-                                    const newSet = new Set(prev);
-                                    newSet.delete(lastCompletedOrder);
-                                    return newSet;
-                                });
-                                setLastCompletedOrder(null);
-                            }}
-                            className="mb-4 px-6 py-3 text-xl"
-                        >
-                            Undo last completion
-                        </button>
-                    )}
-
                     <div className="space-y-4">
                         {visibleOrders.map(order => (
                             <Order
@@ -355,6 +381,8 @@
                                 order={order}
                                 orderNumber={getDailyOrderNumber(orders, order.id)}
                                 onComplete={toggleOrderComplete}
+                                onUndo={handleUndo}
+                                isLastCompleted={order.id === lastCompletedOrder}
                             />
                         ))}
                     </div>
