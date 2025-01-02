@@ -7,12 +7,54 @@
     <script src="https://unpkg.com/react-dom@17/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/babel-standalone@6.26.0/babel.min.js"></script>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <style>
+        @media (prefers-color-scheme: dark) {
+            body {
+                background-color: #1f2937;
+                color: #e5e7eb;
+            }
+            .bg-white {
+                background-color: #374151;
+                color: #e5e7eb;
+            }
+            .bg-gray-100 {
+                background-color: #4b5563;
+            }
+            .text-gray-600 {
+                color: #d1d5db;
+            }
+            .border-gray-400 {
+                border-color: #6b7280;
+            }
+            .bg-red-100 {
+                background-color: #991b1b;
+            }
+            .text-red-700 {
+                color: #fee2e2;
+            }
+        }
+        .new-order-highlight {
+            animation: highlight 1s ease-out;
+        }
+        @keyframes highlight {
+            0% { background-color: #fefcbf; }
+            100% { background-color: inherit; }
+        }
+        .refresh-icon {
+            animation: rotate 1s linear infinite;
+        }
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+    </style>
 </head>
 <body class="bg-gray-100">
+    <audio id="notificationSound" src="notification.mp3"></audio>
     <div id="root"></div>
 
     <script type="text/babel">
-        function StatusInfo({ lastOrderTime, lastUpdateTime }) {
+        function StatusInfo({ lastOrderTime, lastUpdateTime, isRefreshing }) {
             const formatTimeDiff = (timestamp) => {
                 if (!timestamp) return 'Never';
                 const diff = Math.floor((new Date() - new Date(timestamp)) / 1000);
@@ -22,16 +64,23 @@
             };
 
             return (
-                <div className="text-sm text-gray-600 mt-1 flex justify-between">
+                <div className="text-sm text-gray-600 mt-1 flex justify-between items-center">
                     <div>Last Order: {formatTimeDiff(lastOrderTime)}</div>
-                    <div>Last Update: {formatTimeDiff(lastUpdateTime)}</div>
+                    <div className="flex items-center">
+                        Last Update: {formatTimeDiff(lastUpdateTime)}
+                        {isRefreshing && (
+                            <svg className="ml-2 h-4 w-4 refresh-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                        )}
+                    </div>
                 </div>
             );
         }
 
-        function Header({ onReset, onClearAll, hasCompletedOrders, hasActiveOrders }) {
+        function Header({ onReset, onClearAll, hasCompletedOrders, hasActiveOrders, activeOrderCount }) {
             const [time, setTime] = React.useState(new Date());
-            const version = "2.0";
+            const version = "2.1";
 
             React.useEffect(() => {
                 const timer = setInterval(() => {
@@ -47,6 +96,12 @@
                     onClearAll();
                 }
             };
+
+            const handleReset = () => {
+                if (window.confirm('Are you sure you want to reset completed orders?')) {
+                    onReset();
+                }
+            }
 
             return (
                 <div className="bg-white rounded-lg shadow mb-4">
@@ -66,11 +121,13 @@
                                 })}
                             </div>
                         </div>
-                        
+                        <div className="text-gray-600 text-sm mt-2">
+                            Total Active Orders: {activeOrderCount}
+                        </div>
                         <div className="flex gap-2 mt-4">
                             {hasCompletedOrders && (
                                 <button
-                                    onClick={onReset}
+                                    onClick={handleReset}
                                     className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-lg transition-colors duration-200"
                                 >
                                     Reset Completed Orders
@@ -99,6 +156,9 @@
             const [error, setError] = React.useState(null);
             const [loading, setLoading] = React.useState(false);
             const [lastUpdateTime, setLastUpdateTime] = React.useState(null);
+            const [newOrderIds, setNewOrderIds] = React.useState(new Set());
+            const [lastCompletedOrder, setLastCompletedOrder] = React.useState(null);
+            const [isRefreshing, setIsRefreshing] = React.useState(false);
 
             React.useEffect(() => {
                 localStorage.setItem('completedOrders', JSON.stringify([...completedOrders]));
@@ -120,11 +180,20 @@
             const fetchOrders = async () => {
                 if (loading) return;
                 setLoading(true);
+                setIsRefreshing(true);
                 try {
                     const response = await fetch('/.netlify/functions/get-orders');
                     const data = await response.json();
 
                     if (data.status === 'success') {
+                        const newOrders = data.orders.filter(order => !orders.some(o => o.id === order.id));
+                        if (newOrders.length > 0) {
+                            const newIds = new Set(newOrders.map(order => order.id));
+                            setNewOrderIds(newIds);
+                            document.getElementById('notificationSound').play();
+                        } else {
+                            setNewOrderIds(new Set());
+                        }
                         setOrders(data.orders);
                         setError(null);
                         setLastUpdateTime(new Date().toISOString());
@@ -135,9 +204,11 @@
                     setError(error.message);
                 }
                 setLoading(false);
+                setIsRefreshing(false);
             };
 
             const toggleOrderComplete = async (orderId) => {
+                setLastCompletedOrder(orderId);
                 try {
                     const response = await fetch('/.netlify/functions/mark-complete', {
                         method: 'POST',
@@ -221,11 +292,13 @@
                         onClearAll={clearAllOrders}
                         hasCompletedOrders={hasCompletedOrders}
                         hasActiveOrders={visibleOrders.length > 0}
+                        activeOrderCount={visibleOrders.length}
                     />
 
                     <StatusInfo
                         lastOrderTime={lastOrderTime}
                         lastUpdateTime={lastUpdateTime}
+                        isRefreshing={isRefreshing}
                     />
 
                     {error && (
@@ -238,7 +311,7 @@
                         {visibleOrders.map(order => (
                             <div
                                 key={order.id}
-                                className="bg-white rounded-lg shadow p-4"
+                                className={`bg-white rounded-lg shadow p-4 ${newOrderIds.has(order.id) ? 'new-order-highlight' : ''}`}
                             >
                                 <div className="flex justify-between items-center mb-2">
                                     <div className="text-2xl font-bold">
