@@ -3,9 +3,6 @@ const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
 
 exports.handler = async function(event, context) {
-    const query = new URLSearchParams(event.queryStringParameters || {});
-    const isTest = query.get('test') === 'true';
-
     try {
         // Decode the base64 encoded private key
         const privateKey = Buffer.from(process.env.ZETTLE_PRIVATE_KEY_BASE64, 'base64').toString('utf8');
@@ -43,17 +40,6 @@ exports.handler = async function(event, context) {
 
         const accessToken = tokenData.access_token;
 
-        if (isTest) {
-            // For test connection, return success message without fetching orders
-            return {
-                statusCode: 200,
-                body: JSON.stringify({
-                    message: "Connection successful.",
-                    timestamp: new Date().toISOString()
-                })
-            };
-        }
-
         // Step 2: Fetch orders using the access token
         const ordersResponse = await fetch('https://purchase.izettle.com/purchases/v2', {
             headers: {
@@ -68,32 +54,15 @@ exports.handler = async function(event, context) {
 
         const orders = await ordersResponse.json();
 
-        // Set up SSE response
-        return new Response(null, {
+        return {
             statusCode: 200,
-            headers: {
-                'Content-Type': 'text/event-stream',
-                'Cache-Control': 'no-cache',
-                'Connection': 'keep-alive'
-            },
-            body: new ReadableStream({
-                async start(controller) {
-                    // Simulate real-time order updates
-                    setInterval(() => {
-                        const order = orders.purchases[Math.floor(Math.random() * orders.purchases.length)];
-                        controller.enqueue(`data: ${JSON.stringify(order)}\n\n`);
-                    }, 5000);
-                }
-            })
-        });
+            body: JSON.stringify({ orders: orders.purchases || [] })
+        };
 
     } catch (error) {
         return {
             statusCode: 500,
-            body: JSON.stringify({
-                message: "Connection failed: " + error.message,
-                timestamp: new Date().toISOString()
-            })
+            body: JSON.stringify({ error: error.message })
         };
     }
 };
