@@ -1,10 +1,4 @@
 const fetch = require('node-fetch');
-const faunadb = require('faunadb');
-
-const q = faunadb.query;
-const client = new faunadb.Client({
-  secret: process.env.FAUNADB_SERVER_SECRET,
-});
 
 exports.handler = async function (event, context) {
   try {
@@ -50,45 +44,22 @@ exports.handler = async function (event, context) {
         variant: product.variantName || '',  // In case drinks have variants
         comment: product.comment || ''      // Any special instructions
       })),
-      completed: false  // Add a completed flag for baristas to check off
+      completed: false  // This flag is not used for filtering anymore
     }))
     .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)); // Most recent first
-
-    // Get completed order IDs from FaunaDB
-    let completedOrders = [];
-    try {
-      const completedOrdersResponse = await client.query(
-        q.Map(
-            q.Paginate(q.Documents(q.Collection('completed_orders')), { size: 100000 }),
-            q.Lambda('ref', q.Select(['data', 'orderId'], q.Get(q.Var('ref'))))
-        )
-      );
-      completedOrders = completedOrdersResponse.data;
-    } catch (error) {
-      if (error.name === 'NotFound') {
-        console.log('completed_orders collection not found, likely first use.');
-      } else {
-        throw error; // Re-throw other errors to be handled in the outer catch block
-      }
-    }
-
-    // Filter out completed orders
-    const filteredOrders = formattedOrders.filter(
-      (order) => !completedOrders.includes(order.id)
-    );
 
     return {
       statusCode: 200,
       body: JSON.stringify({
         status: 'success',
-        orders: filteredOrders, // Return filtered orders
+        orders: formattedOrders, // Return all orders from Zettle
         lastUpdated: new Date().toLocaleTimeString(),
       }),
     };
   } catch (error) {
     console.error('Function Error:', error);
     return {
-      statusCode: 500, // Changed from 200 to 500 to indicate an error
+      statusCode: 500,
       body: JSON.stringify({
         status: 'error',
         stage: 'processing',
