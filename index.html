@@ -75,7 +75,7 @@
 
         function Header({ onReset, onClearAll, onUndo, hasCompletedOrders, hasActiveOrders, activeOrderCount, canUndo }) {
             const [time, setTime] = React.useState(new Date());
-            const version = "2.3";
+            const version = "2.4";
 
             React.useEffect(() => {
                 const timer = setInterval(() => {
@@ -234,14 +234,14 @@
                     // Set sound parameters
                     oscillator.type = 'sine';
                     oscillator.frequency.setValueAtTime(440, context.currentTime); // A4 note
-                    gainNode.gain.setValueAtTime(0.8, context.currentTime); // Much louder for coffee shop environment
+                    gainNode.gain.setValueAtTime(1.0, context.currentTime); // Maximum volume
                     
                     // Start and stop the sound
                     oscillator.start(context.currentTime);
-                    oscillator.stop(context.currentTime + 0.2); // Short beep
+                    oscillator.stop(context.currentTime + 0.3); // Longer beep
                     
                     // Fade out
-                    gainNode.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 0.2);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 0.3);
                 } catch (error) {
                     console.error('Error playing notification:', error);
                 }
