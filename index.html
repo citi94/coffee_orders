@@ -14,7 +14,8 @@
     <script type="text/babel">
         function Header({ onReset, hasCompletedOrders }) {
             const [time, setTime] = React.useState(new Date());
-            
+            const version = "1.0"; // Update version number as needed
+
             React.useEffect(() => {
                 const timer = setInterval(() => {
                     setTime(new Date());
@@ -30,9 +31,10 @@
                         <div className="flex flex-col">
                             <h1 className="text-3xl font-bold">Middle Street Coffee</h1>
                             <div className="text-gray-600 text-lg">{dayName}</div>
+                            <div className="text-gray-600 text-base">Version: {version}</div> {/* Display version */}
                         </div>
                         <div className="text-2xl font-bold">
-                            {time.toLocaleTimeString('en-US', { 
+                            {time.toLocaleTimeString('en-US', {
                                 hour12: false,
                                 hour: '2-digit',
                                 minute: '2-digit',
@@ -42,7 +44,7 @@
                     </div>
                     {hasCompletedOrders && (
                         <div className="px-4 pb-4">
-                            <button 
+                            <button
                                 onClick={onReset}
                                 className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-lg transition-colors duration-200"
                             >
@@ -63,8 +65,6 @@
             const [error, setError] = React.useState(null);
             const [loading, setLoading] = React.useState(false);
 
-            // ... [getDailyOrderNumber and other utility functions remain the same] ...
-
             const resetCompletedOrders = () => {
                 setCompletedOrders(new Set());
                 localStorage.removeItem('completedOrders');
@@ -76,7 +76,7 @@
                 try {
                     const response = await fetch('/.netlify/functions/get-orders');
                     const data = await response.json();
-                    
+
                     if (data.status === 'success') {
                         setOrders(data.orders);
                         setError(null);
@@ -108,11 +108,11 @@
             const getDailyOrderNumber = (orders, targetId) => {
                 const today = new Date().toDateString();
                 let counter = 1;
-                
-                const sortedOrders = [...orders].sort((a, b) => 
+
+                const sortedOrders = [...orders].sort((a, b) =>
                     new Date(a.timestamp) - new Date(b.timestamp)
                 );
-                
+
                 for (const order of sortedOrders) {
                     const orderDate = new Date(order.timestamp).toDateString();
                     if (orderDate === today) {
@@ -125,18 +125,34 @@
                 return null;
             };
 
-            const toggleOrderComplete = (orderId) => {
-                const newCompleted = new Set(completedOrders);
-                if (newCompleted.has(orderId)) {
-                    newCompleted.delete(orderId);
-                } else {
-                    newCompleted.add(orderId);
+            const toggleOrderComplete = async (orderId) => {
+                try {
+                    const response = await fetch('/.netlify/functions/mark-complete', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ orderId }),
+                    });
+
+                    if (response.ok) {
+                        // Update local state (for immediate visual feedback)
+                        const newCompleted = new Set(completedOrders);
+                        newCompleted.add(orderId);
+                        setCompletedOrders(newCompleted);
+                        localStorage.setItem('completedOrders', JSON.stringify(Array.from(newCompleted)));
+
+                        // Refetch orders to update the list
+                        fetchOrders();
+                    } else {
+                        const data = await response.json();
+                        setError(data.message || 'Error marking order as complete');
+                    }
+                } catch (error) {
+                    setError('Network error while marking order as complete');
                 }
-                setCompletedOrders(newCompleted);
-                localStorage.setItem('completedOrders', JSON.stringify(Array.from(newCompleted)));
             };
 
-            // Check if there are any completed orders from today
             const hasCompletedOrders = React.useMemo(() => {
                 const today = new Date().toDateString();
                 return orders.some(order => {
@@ -147,7 +163,7 @@
 
             return (
                 <div className="p-4 max-w-4xl mx-auto">
-                    <Header 
+                    <Header
                         onReset={resetCompletedOrders}
                         hasCompletedOrders={hasCompletedOrders}
                     />
@@ -160,7 +176,7 @@
 
                     <div className="space-y-4">
                         {activeOrders.map(order => (
-                            <div 
+                            <div
                                 key={order.id}
                                 className="bg-white rounded-lg shadow p-4"
                             >
@@ -180,7 +196,7 @@
 
                                 <ul className="space-y-3">
                                     {order.items.map((item, index) => (
-                                        <li 
+                                        <li
                                             key={index}
                                             className="text-xl flex items-start"
                                         >
@@ -205,7 +221,7 @@
                                 </ul>
 
                                 <div className="mt-3 flex justify-end">
-                                    <button 
+                                    <button
                                         onClick={() => toggleOrderComplete(order.id)}
                                         className="px-6 py-2 rounded-lg text-lg bg-emerald-500 hover:bg-emerald-600 text-white"
                                     >
