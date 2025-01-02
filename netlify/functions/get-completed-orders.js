@@ -1,26 +1,29 @@
-const faunadb = require('faunadb');
-const q = faunadb.query;
-const client = new faunadb.Client({
-  secret: process.env.FAUNADB_SERVER_SECRET,
-  keepAlive: false // Force older connection handling
-});
+const fs = require('fs');
+const path = require('path');
 
 exports.handler = async function (event, context) {
   try {
-    // Most basic query possible
-    const result = await client.query(
-      q.Paginate(
-        q.Match(
-          q.Index('completed_orders_by_id')
-        )
-      )
-    );
+    const filePath = path.join(__dirname, 'completed_orders.json');
+    
+    // Read the JSON file
+    let completedOrders = [];
+    try {
+      const fileContent = await fs.promises.readFile(filePath, 'utf8');
+      completedOrders = JSON.parse(fileContent);
+    } catch (err) {
+      if (err.code === 'ENOENT') {
+        // File doesn't exist yet, that's fine
+        await fs.promises.writeFile(filePath, JSON.stringify([], null, 2));
+      } else {
+        throw err;
+      }
+    }
 
     return {
       statusCode: 200,
       body: JSON.stringify({
         status: 'success',
-        completedOrders: result.data || [],
+        completedOrders: completedOrders,
       }),
     };
   } catch (error) {
