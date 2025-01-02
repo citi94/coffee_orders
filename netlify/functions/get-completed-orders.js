@@ -9,14 +9,24 @@ exports.handler = async function (event, context) {
     let completedOrders = [];
     try {
       const fileContent = await fs.promises.readFile(filePath, 'utf8');
-      completedOrders = JSON.parse(fileContent);
+      // Handle empty or whitespace-only content
+      if (fileContent.trim()) {
+        completedOrders = JSON.parse(fileContent);
+      }
     } catch (err) {
-      if (err.code === 'ENOENT') {
-        // File doesn't exist yet, that's fine
+      if (err.code === 'ENOENT' || err instanceof SyntaxError) {
+        // File doesn't exist or is invalid JSON, create it with an empty array
         await fs.promises.writeFile(filePath, JSON.stringify([], null, 2));
       } else {
         throw err;
       }
+    }
+
+    // Ensure completedOrders is always an array
+    if (!Array.isArray(completedOrders)) {
+      completedOrders = [];
+      // Fix the file content
+      await fs.promises.writeFile(filePath, JSON.stringify([], null, 2));
     }
 
     return {
