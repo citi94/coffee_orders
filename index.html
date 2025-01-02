@@ -105,7 +105,7 @@
 
         function Header({ onReset, onClearAll, onUndo, hasCompletedOrders, hasActiveOrders, activeOrderCount, canUndo }) {
             const [time, setTime] = React.useState(new Date());
-            const version = "2.5";
+            const version = "2.6";
 
             React.useEffect(() => {
                 const timer = setInterval(() => {
@@ -172,20 +172,22 @@
             const [opacity, setOpacity] = React.useState(0);
             
             React.useEffect(() => {
-                const orderTime = new Date(order.timestamp).getTime();
-                const now = new Date().getTime();
-                const diffMinutes = (now - orderTime) / (1000 * 60);
+                const calculateOpacity = () => {
+                    const orderTime = new Date(order.timestamp).getTime();
+                    const now = new Date().getTime();
+                    const diffMinutes = (now - orderTime) / (1000 * 60);
+                    
+                    // Calculate opacity based on time waiting (max 5 minutes)
+                    return Math.min(diffMinutes / 5, 1);
+                };
                 
-                // Calculate opacity based on time waiting (max 5 minutes)
-                const calculatedOpacity = Math.min(diffMinutes / 5, 1);
-                setOpacity(calculatedOpacity);
+                // Initial opacity
+                setOpacity(calculateOpacity());
                 
-                // Update opacity every 30 seconds
+                // Update with the main page refresh
                 const interval = setInterval(() => {
-                    const currentTime = new Date().getTime();
-                    const currentDiffMinutes = (currentTime - orderTime) / (1000 * 60);
-                    setOpacity(Math.min(currentDiffMinutes / 5, 1));
-                }, 30000);
+                    setOpacity(calculateOpacity());
+                }, 5000); // Match the main page refresh rate
                 
                 return () => clearInterval(interval);
             }, [order.timestamp]);
@@ -194,7 +196,7 @@
                 <div className="order-card">
                     <div 
                         className="brew-indicator"
-                        style={{ opacity: opacity * 0.15 }} // Adjust multiplier to control maximum darkness
+                        style={{ opacity: opacity * 0.5 }} // 50% maximum opacity
                     />
                     <div className="flex justify-between items-start mb-6">
                         <div className="order-number">
