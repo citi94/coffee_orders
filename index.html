@@ -89,6 +89,34 @@
                 setLoading(false);
             };
 
+            const toggleOrderComplete = async (orderId) => {
+                try {
+                    const response = await fetch('/.netlify/functions/mark-complete', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ orderId }),
+                    });
+
+                    if (response.ok) {
+                        // Update local state (for immediate visual feedback)
+                        const newCompleted = new Set(completedOrders);
+                        newCompleted.add(orderId);
+                        setCompletedOrders(newCompleted);
+                        localStorage.setItem('completedOrders', JSON.stringify(Array.from(newCompleted)));
+
+                        // Refetch orders to update the list
+                        fetchOrders();
+                    } else {
+                        const data = await response.json();
+                        setError(data.message || 'Error marking order as complete');
+                    }
+                } catch (error) {
+                    setError('Network error while marking order as complete');
+                }
+            };
+
             React.useEffect(() => {
                 fetchOrders();
                 const interval = setInterval(fetchOrders, 5000);
@@ -123,34 +151,6 @@
                     }
                 }
                 return null;
-            };
-
-            const toggleOrderComplete = async (orderId) => {
-                try {
-                    const response = await fetch('/.netlify/functions/mark-complete', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({ orderId }),
-                    });
-
-                    if (response.ok) {
-                        // Update local state (for immediate visual feedback)
-                        const newCompleted = new Set(completedOrders);
-                        newCompleted.add(orderId);
-                        setCompletedOrders(newCompleted);
-                        localStorage.setItem('completedOrders', JSON.stringify(Array.from(newCompleted)));
-
-                        // Refetch orders to update the list
-                        fetchOrders();
-                    } else {
-                        const data = await response.json();
-                        setError(data.message || 'Error marking order as complete');
-                    }
-                } catch (error) {
-                    setError('Network error while marking order as complete');
-                }
             };
 
             const hasCompletedOrders = React.useMemo(() => {
