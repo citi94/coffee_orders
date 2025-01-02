@@ -14,47 +14,25 @@
 <script type="text/babel">
     function OrderDisplay() {
         const [orders, setOrders] = React.useState([]);
-        const [testResult, setTestResult] = React.useState(null);
-        const [loading, setLoading] = React.useState(false);
 
         React.useEffect(() => {
-            const eventSource = new EventSource('/.netlify/functions/get-orders');
+            const interval = setInterval(async () => {
+                try {
+                    const response = await fetch('/.netlify/functions/get-orders');
+                    const data = await response.json();
+                    setOrders(data.orders);
+                } catch (error) {
+                    console.error('Error fetching orders:', error);
+                }
+            }, 5000);
 
-            eventSource.onmessage = (event) => {
-                const data = JSON.parse(event.data);
-                setOrders(prevOrders => {
-                    if (!prevOrders.some(order => order.id === data.id)) {
-                        return [...prevOrders, data];
-                    }
-                    return prevOrders;
-                });
-            };
-
-            return () => {
-                eventSource.close();
-            };
+            return () => clearInterval(interval);
         }, []);
-
-        const markOrderCompleted = (orderId) => {
-            setOrders(prevOrders => prevOrders.filter(order => order.id !== orderId));
-        };
-
-        const testConnection = async () => {
-            setLoading(true);
-            try {
-                const response = await fetch('/.netlify/functions/get-orders?test=true');
-                const data = await response.json();
-                setTestResult(data);
-            } catch (error) {
-                setTestResult({ message: "Connection failed: " + error.message });
-            }
-            setLoading(false);
-        };
 
         return (
             <div className="p-4 max-w-3xl mx-auto">
                 <h1 className="text-2xl font-bold mb-4 text-center">Coffee Shop Orders</h1>
-                <div className="bg-white p-4 rounded-lg shadow mb-4">
+                <div className="bg-white p-4 rounded-lg shadow">
                     <h2 className="text-xl font-bold mb-2">Active Orders</h2>
                     {orders.length === 0 ? (
                         <p>No active orders at this time.</p>
@@ -64,30 +42,9 @@
                                 <li key={order.id} className="mb-2">
                                     <span className="font-semibold">{order.name}</span>
                                     <span className="ml-2">{order.details}</span>
-                                    <button
-                                        onClick={() => markOrderCompleted(order.id)}
-                                        className="float-right bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600"
-                                    >
-                                        Mark as Completed
-                                    </button>
                                 </li>
                             ))}
                         </ul>
-                    )}
-                </div>
-                <div className="bg-white p-4 rounded-lg shadow mt-4">
-                    <h2 className="text-xl font-bold mb-2">Connection Test</h2>
-                    <button
-                        onClick={testConnection}
-                        className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-                        disabled={loading}
-                    >
-                        {loading ? 'Testing...' : 'Test Connection'}
-                    </button>
-                    {testResult && (
-                        <div className="mt-4 p-4 rounded bg-gray-100">
-                            <p>{testResult.message}</p>
-                        </div>
                     )}
                 </div>
             </div>
