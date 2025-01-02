@@ -58,9 +58,17 @@
 
         function OrdersDisplay() {
             const [orders, setOrders] = React.useState([]);
-            const [completedOrders, setCompletedOrders] = React.useState(new Set());
+            const [completedOrders, setCompletedOrders] = React.useState(() => {
+                const saved = localStorage.getItem('completedOrders');
+                return new Set(saved ? JSON.parse(saved) : []);
+            });
             const [error, setError] = React.useState(null);
             const [loading, setLoading] = React.useState(false);
+
+            // Save completed orders to localStorage whenever they change
+            React.useEffect(() => {
+                localStorage.setItem('completedOrders', JSON.stringify([...completedOrders]));
+            }, [completedOrders]);
 
             const resetCompletedOrders = () => {
                 setCompletedOrders(new Set());
@@ -86,26 +94,6 @@
                 setLoading(false);
             };
 
-            // Fetch completed orders on component mount
-            React.useEffect(() => {
-                const fetchCompletedOrders = async () => {
-                try {
-                    const response = await fetch('/.netlify/functions/get-completed-orders');
-                    const data = await response.json();
-
-                    if (data.status === 'success') {
-                    setCompletedOrders(new Set(data.completedOrders));
-                    } else {
-                    setError(data.message || 'Error fetching completed orders');
-                    }
-                } catch (error) {
-                    setError('Network error while fetching completed orders');
-                }
-                };
-
-                fetchCompletedOrders();
-            }, []);
-
             const toggleOrderComplete = async (orderId) => {
                 try {
                     const response = await fetch('/.netlify/functions/mark-complete', {
@@ -117,7 +105,6 @@
                     });
 
                     if (response.ok) {
-                        // Update local state immediately
                         setCompletedOrders((prevCompletedOrders) => {
                             const updatedCompletedOrders = new Set(prevCompletedOrders);
                             updatedCompletedOrders.add(orderId);
@@ -128,6 +115,7 @@
                         setError(data.message || 'Error marking order as complete');
                     }
                 } catch (error) {
+                    console.error('Error marking order complete:', error);
                     setError('Network error while marking order as complete');
                 }
             };
@@ -238,10 +226,10 @@
                                         ))}
                                     </ul>
 
-                                    <div className="m-3 flex justify-end">
+                                    <div className="mt-4 flex justify-end">
                                         <button
                                             onClick={() => toggleOrderComplete(order.id)}
-                                            style={{ color: 'black' }}
+                                            className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-lg transition-colors duration-200"
                                         >
                                             Mark Complete
                                         </button>
