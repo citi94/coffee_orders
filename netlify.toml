@@ -1,5 +1,5 @@
 [build]
-  command = "npm install" # Or any other build command you have
+  command = "npm install"
   functions = "netlify/functions"
 
 [[plugins]]
@@ -7,6 +7,4 @@
 
 [functions]
   included_files = ["netlify/functions/completed_orders.json"]
-
-[functions]
   node_bundler = "esbuild"
