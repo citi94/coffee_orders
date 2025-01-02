@@ -1,4 +1,13 @@
 const fetch = require('node-fetch');
+const fs = require('fs');
+const path = require('path');
+
+const COMPLETED_ORDERS_FILE = path.join(__dirname, 'completed_orders.json');
+
+// Helper function to read completed orders (same as in mark-complete.js)
+const getCompletedOrders = async () => {
+  // ... (same as in mark-complete.js)
+};
 
 exports.handler = async function(event, context) {
     try {
@@ -48,16 +57,22 @@ exports.handler = async function(event, context) {
         }))
         .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)); // Most recent first
 
-        return {
-            statusCode: 200,
-            body: JSON.stringify({
-                status: 'success',
-                orders: formattedOrders,
-                lastUpdated: new Date().toLocaleTimeString()
-            })
-        };
+        const completedOrders = await getCompletedOrders();
 
-    } catch (error) {
+    // Filter out completed orders
+    const filteredOrders = formattedOrders.filter(
+      (order) => !completedOrders.includes(order.id)
+    );
+
+    return {
+      statusCode: 200,
+      body: JSON.stringify({
+        status: 'success',
+        orders: filteredOrders, // Return filtered orders
+        lastUpdated: new Date().toLocaleTimeString(),
+      }),
+    };
+  } catch (error) {
         console.log('Function Error:', error);
         return {
             statusCode: 200,
