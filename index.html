@@ -56,184 +56,64 @@
             );
         }
 
-        function OrdersDisplay() {
-            const [orders, setOrders] = React.useState([]);
-            const [completedOrders, setCompletedOrders] = React.useState(() => {
-                const saved = localStorage.getItem('completedOrders');
-                return saved ? new Set(JSON.parse(saved)) : new Set();
-            });
-            const [error, setError] = React.useState(null);
-            const [loading, setLoading] = React.useState(false);
+function TestOrdersDisplay() {
+    const order = {
+        id: 'test-order-id',
+        timestamp: new Date().toString(),
+        items: [
+            { name: 'Test Coffee', quantity: 1, variant: 'Caffeinated', comment: '' }
+        ]
+    };
 
-            const resetCompletedOrders = () => {
-                setCompletedOrders(new Set());
-                localStorage.removeItem('completedOrders');
-            };
+    const toggleOrderComplete = (orderId) => {
+        console.log("Marking order as complete:", orderId);
+        // In a real scenario, you would make your fetch call here
+    };
 
-            const fetchOrders = async () => {
-                if (loading) return;
-                setLoading(true);
-                try {
-                    const response = await fetch('/.netlify/functions/get-orders');
-                    const data = await response.json();
-
-                    if (data.status === 'success') {
-                        setOrders(data.orders);
-                        setError(null);
-                    } else {
-                        setError(data.message);
-                    }
-                } catch (error) {
-                    setError(error.message);
-                }
-                setLoading(false);
-            };
-
-            const toggleOrderComplete = async (orderId) => {
-                try {
-                    const response = await fetch('/.netlify/functions/mark-complete', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({ orderId }),
-                    });
-
-                    if (response.ok) {
-                        // Update local state (for immediate visual feedback)
-                        const newCompleted = new Set(completedOrders);
-                        newCompleted.add(orderId);
-                        setCompletedOrders(newCompleted);
-                        localStorage.setItem('completedOrders', JSON.stringify(Array.from(newCompleted)));
-
-                        // Refetch orders to update the list
-                        fetchOrders();
-                    } else {
-                        const data = await response.json();
-                        setError(data.message || 'Error marking order as complete');
-                    }
-                } catch (error) {
-                    setError('Network error while marking order as complete');
-                }
-            };
-
-            React.useEffect(() => {
-                fetchOrders();
-                const interval = setInterval(fetchOrders, 5000);
-                return () => clearInterval(interval);
-            }, []);
-
-            const activeOrders = React.useMemo(() => {
-                const today = new Date().toDateString();
-                return orders
-                    .filter(order => {
-                        const orderDate = new Date(order.timestamp).toDateString();
-                        return orderDate === today && !completedOrders.has(order.id);
-                    })
-                    .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)); // Newest first
-            }, [orders, completedOrders]);
-
-            const getDailyOrderNumber = (orders, targetId) => {
-                const today = new Date().toDateString();
-                let counter = 1;
-
-                const sortedOrders = [...orders].sort((a, b) =>
-                    new Date(a.timestamp) - new Date(b.timestamp)
-                );
-
-                for (const order of sortedOrders) {
-                    const orderDate = new Date(order.timestamp).toDateString();
-                    if (orderDate === today) {
-                        if (order.id === targetId) {
-                            return counter;
-                        }
-                        counter++;
-                    }
-                }
-                return null;
-            };
-
-            const hasCompletedOrders = React.useMemo(() => {
-                const today = new Date().toDateString();
-                return orders.some(order => {
-                    const orderDate = new Date(order.timestamp).toDateString();
-                    return orderDate === today && completedOrders.has(order.id);
-                });
-            }, [orders, completedOrders]);
-
-            return (
-                <div className="p-4 max-w-4xl mx-auto">
-                    <Header
-                        onReset={resetCompletedOrders}
-                        hasCompletedOrders={hasCompletedOrders}
-                    />
-
-                    {error && (
-                        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-                            {error}
-                        </div>
-                    )}
-
-                    <div className="space-y-4">
-                        {activeOrders.map(order => (
-                            <div
-                                key={order.id}
-                                className="bg-white rounded-lg shadow p-4"
-                            >
-                                <div className="flex justify-between items-center mb-2">
-                                    <div className="text-2xl font-bold">
-                                        No. {getDailyOrderNumber(orders, order.id)}
-                                    </div>
-                                    <div className="text-lg text-gray-600">
-                                        {new Date(order.timestamp).toLocaleTimeString('en-US', {
-                                            hour12: false,
-                                            hour: '2-digit',
-                                            minute: '2-digit',
-                                            second: '2-digit'
-                                        })}
-                                    </div>
-                                </div>
-
-                                <ul className="space-y-3">
-                                    {order.items.map((item, index) => (
-                                        <li
-                                            key={index}
-                                            className="text-xl flex items-start"
-                                        >
-                                            <span className="font-bold mr-3 text-2xl min-w-[2.5rem]">
-                                                {item.quantity}x
-                                            </span>
-                                            <div className="flex-1">
-                                                <span>{item.name}</span>
-                                                {item.variant && (
-                                                    <span className="text-gray-600 italic">
-                                                        {' - '}{item.variant}
-                                                    </span>
-                                                )}
-                                                {item.comment && (
-                                                    <div className="text-gray-600 italic text-lg">
-                                                        {item.comment}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </li>
-                                    ))}
-                                </ul>
-
-                                <div className="mt-3 flex justify-end">
-                                    <button
-                                        onClick={() => toggleOrderComplete(order.id)}
-                                        className="px-6 py-2 rounded-lg text-lg bg-emerald-500 hover:bg-emerald-600 text-white"
-                                    >
-                                        Mark Complete
-                                    </button>
-                                </div>
-                            </div>
-                        ))}
+    return (
+        <div className="p-4 max-w-4xl mx-auto">
+            <div key={order.id} className="bg-white rounded-lg shadow p-4">
+                <div className="flex justify-between items-center mb-2">
+                    <div className="text-2xl font-bold">No. 1</div>
+                    <div className="text-lg text-gray-600">
+                        {new Date(order.timestamp).toLocaleTimeString('en-US', {
+                            hour12: false,
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            second: '2-digit',
+                        })}
                     </div>
                 </div>
-            );
-        }
+                <ul className="space-y-3">
+                    {order.items.map((item, index) => (
+                        <li key={index} className="text-xl flex items-start">
+                            <span className="font-bold mr-3 text-2xl min-w-[2.5rem]">
+                                {item.quantity}x
+                            </span>
+                            <div className="flex-1">
+                                <span>{item.name}</span>
+                                {item.variant && (
+                                    <span className="text-gray-600 italic">
+                                        {' - '}
+                                        {item.variant}
+                                    </span>
+                                )}
+                            </div>
+                        </li>
+                    ))}
+                </ul>
+                <div className="mt-3 flex justify-end">
+                    <button
+                        onClick={() => toggleOrderComplete(order.id)}
+                        className="px-6 py-2 rounded-lg text-lg bg-emerald-500 hover:bg-emerald-600 text-white"
+                    >
+                        Mark Complete
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
 
         ReactDOM.render(<OrdersDisplay />, document.getElementById('root'));
     </script>
