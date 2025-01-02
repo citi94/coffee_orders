@@ -101,7 +101,7 @@
                             (new Date() - new Date(order.timestamp)) < 5 * 60 * 1000
                         );
                     })
-                    .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp)); // Earliest first
+                    .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)); // Newest first for display
             }, [orders]);
 
             const toggleOrderComplete = (orderId) => {
