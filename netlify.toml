@@ -1,11 +1,9 @@
 [build]
+  command = "npm install" # Or any other build command you have
   functions = "netlify/functions"
-
-[functions]
-  directory = "netlify/functions"
 
 [[plugins]]
   package = "@netlify/plugin-functions-install-core"
 
 [functions]
-  included_files = ["./completed_orders.json"]
+  included_files = ["netlify/functions/completed_orders.json"]
