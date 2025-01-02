@@ -12,9 +12,26 @@
     <div id="root"></div>
 
     <script type="text/babel">
-        function Header({ onReset, hasCompletedOrders }) {
+        function StatusInfo({ lastOrderTime, lastUpdateTime }) {
+            const formatTimeDiff = (timestamp) => {
+                if (!timestamp) return 'Never';
+                const diff = Math.floor((new Date() - new Date(timestamp)) / 1000);
+                if (diff < 60) return `${diff} seconds ago`;
+                if (diff < 3600) return `${Math.floor(diff / 60)} minutes ago`;
+                return `${Math.floor(diff / 3600)} hours ago`;
+            };
+
+            return (
+                <div className="text-sm text-gray-600 mt-1 flex justify-between">
+                    <div>Last Order: {formatTimeDiff(lastOrderTime)}</div>
+                    <div>Last Update: {formatTimeDiff(lastUpdateTime)}</div>
+                </div>
+            );
+        }
+
+        function Header({ onReset, onClearAll, hasCompletedOrders, hasActiveOrders }) {
             const [time, setTime] = React.useState(new Date());
-            const version = "1.1";
+            const version = "2.0";
 
             React.useEffect(() => {
                 const timer = setInterval(() => {
@@ -25,33 +42,50 @@
 
             const dayName = time.toLocaleDateString('en-US', { weekday: 'long' });
 
+            const handleClearAll = () => {
+                if (window.confirm('Are you sure you want to mark all current orders as complete?')) {
+                    onClearAll();
+                }
+            };
+
             return (
                 <div className="bg-white rounded-lg shadow mb-4">
-                    <div className="p-4 flex justify-between items-center">
-                        <div className="flex flex-col">
-                            <h1 className="text-3xl font-bold">Middle Street Coffee</h1>
-                            <div className="text-gray-600 text-lg">{dayName}</div>
-                            <div className="text-gray-600 text-base">Version: {version}</div>
+                    <div className="p-4">
+                        <div className="flex justify-between items-center">
+                            <div className="flex flex-col">
+                                <h1 className="text-3xl font-bold">Middle Street Coffee</h1>
+                                <div className="text-gray-600 text-lg">{dayName}</div>
+                                <div className="text-gray-600 text-base">Version: {version}</div>
+                            </div>
+                            <div className="text-2xl font-bold">
+                                {time.toLocaleTimeString('en-US', {
+                                    hour12: false,
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                    second: '2-digit'
+                                })}
+                            </div>
                         </div>
-                        <div className="text-2xl font-bold">
-                            {time.toLocaleTimeString('en-US', {
-                                hour12: false,
-                                hour: '2-digit',
-                                minute: '2-digit',
-                                second: '2-digit'
-                            })}
+                        
+                        <div className="flex gap-2 mt-4">
+                            {hasCompletedOrders && (
+                                <button
+                                    onClick={onReset}
+                                    className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-lg transition-colors duration-200"
+                                >
+                                    Reset Completed Orders
+                                </button>
+                            )}
+                            {hasActiveOrders && (
+                                <button
+                                    onClick={handleClearAll}
+                                    className="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg text-lg transition-colors duration-200"
+                                >
+                                    Clear All Orders
+                                </button>
+                            )}
                         </div>
                     </div>
-                    {hasCompletedOrders && (
-                        <div className="px-4 pb-4">
-                            <button
-                                onClick={onReset}
-                                className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-lg transition-colors duration-200"
-                            >
-                                Reset Completed Orders
-                            </button>
-                        </div>
-                    )}
                 </div>
             );
         }
@@ -64,8 +98,8 @@
             });
             const [error, setError] = React.useState(null);
             const [loading, setLoading] = React.useState(false);
+            const [lastUpdateTime, setLastUpdateTime] = React.useState(null);
 
-            // Save completed orders to localStorage whenever they change
             React.useEffect(() => {
                 localStorage.setItem('completedOrders', JSON.stringify([...completedOrders]));
             }, [completedOrders]);
@@ -73,6 +107,14 @@
             const resetCompletedOrders = () => {
                 setCompletedOrders(new Set());
                 localStorage.removeItem('completedOrders');
+            };
+
+            const clearAllOrders = () => {
+                const newCompletedOrders = new Set(completedOrders);
+                activeOrders.forEach(order => {
+                    newCompletedOrders.add(order.id);
+                });
+                setCompletedOrders(newCompletedOrders);
             };
 
             const fetchOrders = async () => {
@@ -85,6 +127,7 @@
                     if (data.status === 'success') {
                         setOrders(data.orders);
                         setError(null);
+                        setLastUpdateTime(new Date().toISOString());
                     } else {
                         setError(data.message);
                     }
@@ -136,6 +179,11 @@
                     .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
             }, [orders]);
 
+            const lastOrderTime = React.useMemo(() => {
+                if (activeOrders.length === 0) return null;
+                return activeOrders[0].timestamp;
+            }, [activeOrders]);
+
             const getDailyOrderNumber = (orders, targetId) => {
                 const today = new Date().toDateString();
                 let counter = 1;
@@ -156,6 +204,8 @@
                 return null;
             };
 
+            const visibleOrders = activeOrders.filter(order => !completedOrders.has(order.id));
+
             const hasCompletedOrders = React.useMemo(() => {
                 const today = new Date().toDateString();
                 return orders.some(order => {
@@ -168,7 +218,14 @@
                 <div className="p-4 max-w-4xl mx-auto">
                     <Header
                         onReset={resetCompletedOrders}
+                        onClearAll={clearAllOrders}
                         hasCompletedOrders={hasCompletedOrders}
+                        hasActiveOrders={visibleOrders.length > 0}
+                    />
+
+                    <StatusInfo
+                        lastOrderTime={lastOrderTime}
+                        lastUpdateTime={lastUpdateTime}
                     />
 
                     {error && (
@@ -178,64 +235,62 @@
                     )}
 
                     <div className="space-y-4">
-                        {activeOrders
-                            .filter(order => !completedOrders.has(order.id))
-                            .map(order => (
-                                <div
-                                    key={order.id}
-                                    className="bg-white rounded-lg shadow p-4"
-                                >
-                                    <div className="flex justify-between items-center mb-2">
-                                        <div className="text-2xl font-bold">
-                                            No. {getDailyOrderNumber(orders, order.id)}
-                                        </div>
-                                        <div className="text-lg text-gray-600">
-                                            {new Date(order.timestamp).toLocaleTimeString('en-US', {
-                                                hour12: false,
-                                                hour: '2-digit',
-                                                minute: '2-digit',
-                                                second: '2-digit'
-                                            })}
-                                        </div>
+                        {visibleOrders.map(order => (
+                            <div
+                                key={order.id}
+                                className="bg-white rounded-lg shadow p-4"
+                            >
+                                <div className="flex justify-between items-center mb-2">
+                                    <div className="text-2xl font-bold">
+                                        No. {getDailyOrderNumber(orders, order.id)}
                                     </div>
-
-                                    <ul className="space-y-3">
-                                        {order.items.map((item, index) => (
-                                            <li
-                                                key={index}
-                                                className="text-xl flex items-start"
-                                            >
-                                                <span className="font-bold mr-3 text-2xl min-w-[2.5rem]">
-                                                    {item.quantity}x
-                                                </span>
-                                                <div className="flex-1">
-                                                    <span>{item.name}</span>
-                                                    {item.variant && (
-                                                        <span className="text-gray-600 italic">
-                                                            {' - '}
-                                                            {item.variant}
-                                                        </span>
-                                                    )}
-                                                    {item.comment && (
-                                                        <div className="text-gray-600 italic text-lg">
-                                                            {item.comment}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </li>
-                                        ))}
-                                    </ul>
-
-                                    <div className="mt-4 flex justify-end">
-                                        <button
-                                            onClick={() => toggleOrderComplete(order.id)}
-                                            className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-lg transition-colors duration-200"
-                                        >
-                                            Mark Complete
-                                        </button>
+                                    <div className="text-lg text-gray-600">
+                                        {new Date(order.timestamp).toLocaleTimeString('en-US', {
+                                            hour12: false,
+                                            hour: '2-digit',
+                                            minute: '2-digit',
+                                            second: '2-digit'
+                                        })}
                                     </div>
                                 </div>
-                            ))}
+
+                                <ul className="space-y-3">
+                                    {order.items.map((item, index) => (
+                                        <li
+                                            key={index}
+                                            className="text-xl flex items-start"
+                                        >
+                                            <span className="font-bold mr-3 text-2xl min-w-[2.5rem]">
+                                                {item.quantity}x
+                                            </span>
+                                            <div className="flex-1">
+                                                <span>{item.name}</span>
+                                                {item.variant && (
+                                                    <span className="text-gray-600 italic">
+                                                        {' - '}
+                                                        {item.variant}
+                                                    </span>
+                                                )}
+                                                {item.comment && (
+                                                    <div className="text-gray-600 italic text-lg">
+                                                        {item.comment}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </li>
+                                    ))}
+                                </ul>
+
+                                <div className="mt-4 flex justify-end">
+                                    <button
+                                        onClick={() => toggleOrderComplete(order.id)}
+                                        className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-lg transition-colors duration-200"
+                                    >
+                                        Mark Complete
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
                     </div>
                 </div>
             );
