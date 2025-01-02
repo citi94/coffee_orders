@@ -4,6 +4,7 @@
   "description": "Coffee shop order display",
   "dependencies": {
     "node-fetch": "^2.6.1",
-    "jsonwebtoken": "^8.5.1"
+    "jsonwebtoken": "^8.5.1",
+    "uuid": "^8.3.2"
   }
 }
