@@ -31,12 +31,12 @@ exports.handler = async function(event, context) {
 
         const { access_token } = await tokenResponse.json();
 
-        // Get today's orders
-        const startOfDay = new Date();
-        startOfDay.setHours(0, 0, 0, 0);
+        // Adjust date range to last 7 days
+        const startDate = new Date();
+        startDate.setDate(startDate.getDate() - 7);
 
         const ordersResponse = await fetch(
-            `https://purchase.izettle.com/purchases/v2?startDate=${startOfDay.toISOString()}`, 
+            `https://purchase.izettle.com/purchases/v2?startDate=${startDate.toISOString()}`, 
             {
                 headers: {
                     'Authorization': `Bearer ${access_token}`
@@ -46,6 +46,7 @@ exports.handler = async function(event, context) {
 
         if (!ordersResponse.ok) {
             const ordersText = await ordersResponse.text();
+            console.log('Orders API Response:', ordersText);
             return {
                 statusCode: 200,
                 body: JSON.stringify({
