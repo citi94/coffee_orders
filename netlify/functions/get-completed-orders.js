@@ -1,17 +1,18 @@
 const faunadb = require('faunadb');
-
 const q = faunadb.query;
 const client = new faunadb.Client({
   secret: process.env.FAUNADB_SERVER_SECRET,
+  keepAlive: false // Force older connection handling
 });
 
 exports.handler = async function (event, context) {
   try {
-    // Simple collection scan instead of using an index
+    // Most basic query possible
     const result = await client.query(
-      q.Map(
-        q.Paginate(q.Documents(q.Collection('completed_orders'))),
-        q.Lambda("x", q.Select(["data", "orderId"], q.Get(q.Var("x"))))
+      q.Paginate(
+        q.Match(
+          q.Index('completed_orders_by_id')
+        )
       )
     );
 
@@ -32,4 +33,4 @@ exports.handler = async function (event, context) {
       })
     };
   }
-}
+};
