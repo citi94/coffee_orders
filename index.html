@@ -14,7 +14,7 @@
     <script type="text/babel">
         function Header({ onReset, hasCompletedOrders }) {
             const [time, setTime] = React.useState(new Date());
-            const version = "1.1"; // Incremented version number
+            const version = "1.1";
 
             React.useEffect(() => {
                 const timer = setInterval(() => {
@@ -58,10 +58,7 @@
 
         function OrdersDisplay() {
             const [orders, setOrders] = React.useState([]);
-            const [completedOrders, setCompletedOrders] = React.useState(() => {
-                const saved = localStorage.getItem('completedOrders');
-                return saved ? new Set(JSON.parse(saved)) : new Set();
-            });
+            const [completedOrders, setCompletedOrders] = React.useState(new Set());
             const [error, setError] = React.useState(null);
             const [loading, setLoading] = React.useState(false);
 
@@ -89,6 +86,26 @@
                 setLoading(false);
             };
 
+            // Fetch completed orders on component mount
+            React.useEffect(() => {
+                const fetchCompletedOrders = async () => {
+                try {
+                    const response = await fetch('/.netlify/functions/get-completed-orders');
+                    const data = await response.json();
+
+                    if (data.status === 'success') {
+                    setCompletedOrders(new Set(data.completedOrders));
+                    } else {
+                    setError(data.message || 'Error fetching completed orders');
+                    }
+                } catch (error) {
+                    setError('Network error while fetching completed orders');
+                }
+                };
+
+                fetchCompletedOrders();
+            }, []);
+
             const toggleOrderComplete = async (orderId) => {
                 try {
                     const response = await fetch('/.netlify/functions/mark-complete', {
@@ -100,14 +117,12 @@
                     });
 
                     if (response.ok) {
-                        // Update local state
-                        const newCompleted = new Set(completedOrders);
-                        newCompleted.add(orderId);
-                        setCompletedOrders(newCompleted);
-                        localStorage.setItem('completedOrders', JSON.stringify(Array.from(newCompleted)));
-
-                        // Refetch orders
-                        fetchOrders();
+                        // Update local state immediately
+                        setCompletedOrders((prevCompletedOrders) => {
+                            const updatedCompletedOrders = new Set(prevCompletedOrders);
+                            updatedCompletedOrders.add(orderId);
+                            return updatedCompletedOrders;
+                        });
                     } else {
                         const data = await response.json();
                         setError(data.message || 'Error marking order as complete');
@@ -128,10 +143,10 @@
                 return orders
                     .filter(order => {
                         const orderDate = new Date(order.timestamp).toDateString();
-                        return orderDate === today && !completedOrders.has(order.id);
+                        return orderDate === today;
                     })
                     .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-            }, [orders, completedOrders]);
+            }, [orders]);
 
             const getDailyOrderNumber = (orders, targetId) => {
                 const today = new Date().toDateString();
@@ -175,62 +190,64 @@
                     )}
 
                     <div className="space-y-4">
-                        {activeOrders.map(order => (
-                            <div
-                                key={order.id}
-                                className="bg-white rounded-lg shadow p-4"
-                            >
-                                <div className="flex justify-between items-center mb-2">
-                                    <div className="text-2xl font-bold">
-                                        No. {getDailyOrderNumber(orders, order.id)}
+                        {activeOrders
+                            .filter(order => !completedOrders.has(order.id))
+                            .map(order => (
+                                <div
+                                    key={order.id}
+                                    className="bg-white rounded-lg shadow p-4"
+                                >
+                                    <div className="flex justify-between items-center mb-2">
+                                        <div className="text-2xl font-bold">
+                                            No. {getDailyOrderNumber(orders, order.id)}
+                                        </div>
+                                        <div className="text-lg text-gray-600">
+                                            {new Date(order.timestamp).toLocaleTimeString('en-US', {
+                                                hour12: false,
+                                                hour: '2-digit',
+                                                minute: '2-digit',
+                                                second: '2-digit'
+                                            })}
+                                        </div>
                                     </div>
-                                    <div className="text-lg text-gray-600">
-                                        {new Date(order.timestamp).toLocaleTimeString('en-US', {
-                                            hour12: false,
-                                            hour: '2-digit',
-                                            minute: '2-digit',
-                                            second: '2-digit'
-                                        })}
-                                    </div>
-                                </div>
 
-                                <ul className="space-y-3">
-                                    {order.items.map((item, index) => (
-                                        <li
-                                            key={index}
-                                            className="text-xl flex items-start"
+                                    <ul className="space-y-3">
+                                        {order.items.map((item, index) => (
+                                            <li
+                                                key={index}
+                                                className="text-xl flex items-start"
+                                            >
+                                                <span className="font-bold mr-3 text-2xl min-w-[2.5rem]">
+                                                    {item.quantity}x
+                                                </span>
+                                                <div className="flex-1">
+                                                    <span>{item.name}</span>
+                                                    {item.variant && (
+                                                        <span className="text-gray-600 italic">
+                                                            {' - '}
+                                                            {item.variant}
+                                                        </span>
+                                                    )}
+                                                    {item.comment && (
+                                                        <div className="text-gray-600 italic text-lg">
+                                                            {item.comment}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </li>
+                                        ))}
+                                    </ul>
+
+                                    <div className="m-3 flex justify-end">
+                                        <button
+                                            onClick={() => toggleOrderComplete(order.id)}
+                                            style={{ color: 'black' }}
                                         >
-                                            <span className="font-bold mr-3 text-2xl min-w-[2.5rem]">
-                                                {item.quantity}x
-                                            </span>
-                                            <div className="flex-1">
-                                                <span>{item.name}</span>
-                                                {item.variant && (
-                                                    <span className="text-gray-600 italic">
-                                                        {' - '}
-                                                        {item.variant}
-                                                    </span>
-                                                )}
-                                                {item.comment && (
-                                                    <div className="text-gray-600 italic text-lg">
-                                                        {item.comment}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </li>
-                                    ))}
-                                </ul>
-
-                                <div className="m-3 flex justify-end">
-                                    <button
-                                        onClick={() => toggleOrderComplete(order.id)}
-                                        style={{ color: 'black' }}
-                                    >
-                                        Mark Complete
-                                    </button>
+                                            Mark Complete
+                                        </button>
+                                    </div>
                                 </div>
-                            </div>
-                        ))}
+                            ))}
                     </div>
                 </div>
             );
