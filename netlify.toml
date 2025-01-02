@@ -6,3 +6,6 @@
 
 [[plugins]]
   package = "@netlify/plugin-functions-install-core"
+
+[functions]
+  included_files = ["./completed_orders.json"]
