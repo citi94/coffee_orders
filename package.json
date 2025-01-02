@@ -1,0 +1,8 @@
+{
+  "name": "coffee-orders",
+  "version": "1.0.0",
+  "description": "Coffee shop order display",
+  "dependencies": {
+    "node-fetch": "^2.6.1"
+  }
+}
