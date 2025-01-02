@@ -6,7 +6,32 @@ const COMPLETED_ORDERS_FILE = path.join(__dirname, 'completed_orders.json');
 
 // Helper function to read completed orders (same as in mark-complete.js)
 const getCompletedOrders = async () => {
-  // ... (same as in mark-complete.js)
+  try {
+    if (fs.existsSync(COMPLETED_ORDERS_FILE)) {
+      const data = fs.readFileSync(COMPLETED_ORDERS_FILE, 'utf8');
+
+      // Check if the file is empty
+      if (data.trim() === '') {
+        console.log("Completed orders file is empty. Returning empty array.");
+        return [];
+      }
+
+      try {
+        // Attempt to parse JSON, handle potential errors
+        const parsedData = JSON.parse(data);
+        console.log("Completed orders file found. Data:", parsedData);
+        return parsedData;
+      } catch (parseError) {
+        console.error("Error parsing JSON from completed orders file:", parseError);
+        return []; // Return empty array on parse error
+      }
+    }
+    console.log("Completed orders file not found. Returning empty array.");
+    return [];
+  } catch (error) {
+    console.error('Error reading completed orders:', error);
+    return [];
+  }
 };
 
 exports.handler = async function(event, context) {
