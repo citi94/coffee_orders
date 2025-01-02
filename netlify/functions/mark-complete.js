@@ -16,24 +16,29 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // Add the completed order ID to FaunaDB
+    // Simpler create query
     await client.query(
-      q.Create(q.Collection('completed_orders'), {
-        data: { orderId: orderId },
-      })
+      q.Create(
+        q.Collection('completed_orders'),
+        { data: { orderId, timestamp: Date.now() } }
+      )
     );
-
-    console.log(`Order ${orderId} marked as complete.`);
 
     return {
       statusCode: 200,
-      body: JSON.stringify({ message: 'Order marked as complete' }),
+      body: JSON.stringify({ 
+        status: 'success',
+        message: 'Order marked as complete' 
+      }),
     };
   } catch (error) {
     console.error('Error marking order complete:', error);
     return {
       statusCode: 500,
-      body: JSON.stringify({ message: 'Error marking order as complete' }),
+      body: JSON.stringify({ 
+        status: 'error',
+        message: 'Error marking order as complete: ' + error.message 
+      }),
     };
   }
 };
