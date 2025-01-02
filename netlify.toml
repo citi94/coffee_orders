@@ -6,8 +6,3 @@
 
 [[plugins]]
   package = "@netlify/plugin-functions-install-core"
-
-[build]
-  command = "npm install && npm run build"
-  publish = "public"
-  node_version = "16"
