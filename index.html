@@ -22,7 +22,6 @@
                 return () => clearInterval(timer);
             }, []);
 
-            // Get day name
             const dayName = time.toLocaleDateString('en-US', { weekday: 'long' });
 
             return (
@@ -48,12 +47,10 @@
             const [error, setError] = React.useState(null);
             const [loading, setLoading] = React.useState(false);
 
-            // Function to get daily order number
             const getDailyOrderNumber = (orders, targetId) => {
                 const today = new Date().toDateString();
                 let counter = 1;
                 
-                // Go through orders chronologically
                 for (const order of orders) {
                     const orderDate = new Date(order.timestamp).toDateString();
                     if (orderDate === today) {
@@ -66,7 +63,6 @@
                 return null;
             };
 
-            // Fetch orders
             const fetchOrders = async () => {
                 if (loading) return;
                 setLoading(true);
@@ -75,7 +71,6 @@
                     const data = await response.json();
                     
                     if (data.status === 'success') {
-                        // Sort orders by timestamp (earliest first)
                         const sortedOrders = data.orders.sort((a, b) => 
                             new Date(a.timestamp) - new Date(b.timestamp)
                         );
@@ -90,14 +85,12 @@
                 setLoading(false);
             };
 
-            // Fetch on load and every 5 seconds
             React.useEffect(() => {
                 fetchOrders();
                 const interval = setInterval(fetchOrders, 5000);
                 return () => clearInterval(interval);
             }, []);
 
-            // Get active orders
             const activeOrders = React.useMemo(() => {
                 const today = new Date().toDateString();
                 return orders
@@ -107,10 +100,10 @@
                             !order.completed || 
                             (new Date() - new Date(order.timestamp)) < 5 * 60 * 1000
                         );
-                    });
+                    })
+                    .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp)); // Earliest first
             }, [orders]);
 
-            // Function to mark order as completed
             const toggleOrderComplete = (orderId) => {
                 setOrders(orders.map(order => 
                     order.id === orderId 
@@ -133,7 +126,7 @@
                         {activeOrders.map(order => (
                             <div 
                                 key={order.id}
-                                className={`bg-white rounded-lg shadow p-4 transition-all duration-200 ${
+                                className={`bg-white rounded-lg shadow p-4 transition-all duration-200 cursor-pointer ${
                                     order.completed ? 'opacity-60' : 'hover:shadow-lg'
                                 }`}
                                 onClick={() => toggleOrderComplete(order.id)}
@@ -177,18 +170,6 @@
                                         </li>
                                     ))}
                                 </ul>
-
-                                <div className="mt-3 flex justify-end">
-                                    <button 
-                                        className={`px-6 py-2 rounded-lg text-lg transition-colors duration-200 ${
-                                            order.completed 
-                                                ? 'bg-gray-300 hover:bg-gray-400' 
-                                                : 'bg-emerald-500 hover:bg-emerald-600 text-white'
-                                        }`}
-                                    >
-                                        {order.completed ? 'Completed' : 'Mark Complete'}
-                                    </button>
-                                </div>
                             </div>
                         ))}
                     </div>
