@@ -1,4 +1,3 @@
-// netlify/functions/mark-complete.js
 const fetch = require('node-fetch');
 const fs = require('fs');
 const path = require('path');
