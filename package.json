@@ -3,7 +3,6 @@
   "version": "1.0.0",
   "description": "Coffee shop order display",
   "dependencies": {
-    "node-fetch": "^2.6.1",
-    "faunadb": "^4.7.1"
+    "node-fetch": "^2.6.1"
   }
 }
