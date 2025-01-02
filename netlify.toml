@@ -7,3 +7,6 @@
 
 [functions]
   included_files = ["netlify/functions/completed_orders.json"]
+
+[functions]
+  node_bundler = "esbuild"
