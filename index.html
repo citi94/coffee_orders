@@ -73,7 +73,7 @@
             );
         }
 
-        function Header({ onReset, onClearAll, hasCompletedOrders, hasActiveOrders, activeOrderCount }) {
+        function Header({ onReset, onClearAll, onUndo, hasCompletedOrders, hasActiveOrders, activeOrderCount, canUndo }) {
             const [time, setTime] = React.useState(new Date());
             const version = "2.1";
 
@@ -109,6 +109,14 @@
                     </div>
                     
                     <div className="flex gap-6 mt-6">
+                        {canUndo && (
+                            <button
+                                onClick={onUndo}
+                                className="px-6 py-3 text-xl"
+                            >
+                                Undo Last Completion
+                            </button>
+                        )}
                         {hasCompletedOrders && (
                             <button
                                 onClick={onReset}
@@ -357,9 +365,11 @@
                     <Header
                         onReset={resetCompletedOrders}
                         onClearAll={clearAllOrders}
+                        onUndo={handleUndo}
                         hasCompletedOrders={hasCompletedOrders}
                         hasActiveOrders={visibleOrders.length > 0}
                         activeOrderCount={visibleOrders.length}
+                        canUndo={!!lastCompletedOrder}
                     />
 
                     <StatusInfo
