@@ -1,8 +1,9 @@
 [build]
-  command = "npm install && npm run build"
+  command = "npm install && npm install --prefix netlify/functions && npm run build"
   publish = "public"
-  node_version = "16"
   functions = "netlify/functions"
+  node_version = "16"
+  functions_node_modules = true
 
 [functions]
   directory = "netlify/functions"
