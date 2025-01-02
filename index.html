@@ -75,7 +75,7 @@
 
         function Header({ onReset, onClearAll, onUndo, hasCompletedOrders, hasActiveOrders, activeOrderCount, canUndo }) {
             const [time, setTime] = React.useState(new Date());
-            const version = "2.2";
+            const version = "2.3";
 
             React.useEffect(() => {
                 const timer = setInterval(() => {
@@ -234,7 +234,7 @@
                     // Set sound parameters
                     oscillator.type = 'sine';
                     oscillator.frequency.setValueAtTime(440, context.currentTime); // A4 note
-                    gainNode.gain.setValueAtTime(0.1, context.currentTime); // Lower volume
+                    gainNode.gain.setValueAtTime(0.8, context.currentTime); // Much louder for coffee shop environment
                     
                     // Start and stop the sound
                     oscillator.start(context.currentTime);
