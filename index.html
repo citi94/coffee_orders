@@ -27,8 +27,8 @@
         
         .order-card {
             border: 2px solid #000000;
-            margin-bottom: 1rem;
-            padding: 1rem;
+            margin-bottom: 0.75rem;
+            padding: 0.75rem 1rem;
             position: relative;
             overflow: hidden;
             background: transparent;
@@ -46,12 +46,24 @@
             pointer-events: none;
             z-index: -1;
         }
+
+        .new-order-indicator {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #90EE90;
+            opacity: 0.1;
+            transition: opacity 0.5s ease;
+            pointer-events: none;
+            z-index: -1;
+        }
         
         .brew-indicator.dark {
             background-color: #2C1810;
         }
 
-        /* Add a white background behind the content but under the indicator */
         .order-card::before {
             content: '';
             position: absolute;
@@ -89,16 +101,32 @@
             border: 2px solid #000000;
             margin-bottom: 1rem;
             padding: 0.75rem;
+            background-color: rgba(144, 238, 144, 0.1);
         }
         
-        button {
+        .complete-button {
             border: 2px solid #000000;
+            padding: 0.5rem 1rem;
+            font-size: 1.1rem;
+            min-width: 120px;
+            background: white;
+            transition: all 0.2s ease;
+        }
+
+        .complete-button:hover {
+            background: #f0f0f0;
         }
         
         .order-number {
-            font-size: 1.75rem;
+            font-size: 2rem;
             font-weight: 800;
             line-height: 1;
+            margin-bottom: 0.5rem;
+        }
+        
+        .order-content {
+            margin-top: 0;
+            padding-top: 0;
         }
         
         .main-text {
@@ -141,8 +169,27 @@
         .compact-layout {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 0.75rem;
+            gap: 0.5rem;
             align-items: start;
+        }
+
+        .order-items {
+            margin-top: 0.5rem;
+        }
+
+        .order-item {
+            display: flex;
+            align-items: baseline;
+            margin-bottom: 0.25rem;
+        }
+
+        .last-order-info {
+            position: absolute;
+            bottom: 0.75rem;
+            right: 0.75rem;
+            text-align: right;
+            font-size: 0.9rem;
+            color: #666;
         }
     </style>
 </head>
@@ -158,26 +205,21 @@
             return `${Math.floor(diff / 3600)} hours ago`;
         }
 
-        function StatusInfo({ lastOrderTime, lastUpdateTime, isLoading, totalOrders }) {
+        function StatusInfo({ lastOrderTime, lastUpdateTime, isLoading }) {
             const timeSinceLastUpdate = lastUpdateTime ? 
                 Math.floor((new Date() - new Date(lastUpdateTime)) / 1000) : 0;
 
-            return (
-                <div>
-                    <div className="text-lg mb-2 main-text">
-                        <div>Last Order: {formatTimeDiff(lastOrderTime)}</div>
-                    </div>
-                    
-                    {timeSinceLastUpdate > 60 && (
-                        <div className="border-2 border-black px-3 py-2 mb-2">
-                            <div className="text-lg font-bold">⚠️ Connection Warning</div>
-                            <div className="text-base">
-                                Last Update: {formatTimeDiff(lastUpdateTime)}
-                            </div>
+            if (timeSinceLastUpdate > 60) {
+                return (
+                    <div className="border-2 border-black px-3 py-2 mb-2">
+                        <div className="text-lg font-bold">⚠️ Connection Warning</div>
+                        <div className="text-base">
+                            Last Update: {formatTimeDiff(lastUpdateTime)}
                         </div>
-                    )}
-                </div>
-            );
+                    </div>
+                );
+            }
+            return null;
         }
 
         function Header({ onReset, onClearAll, onUndo, hasCompletedOrders, hasActiveOrders, activeOrderCount, totalOrderCount, canUndo }) {
@@ -222,17 +264,17 @@
                     
                     <div className="flex gap-2 mt-2">
                         {canUndo && (
-                            <button onClick={onUndo} className="px-4 py-2 text-base bg-white">
+                            <button onClick={onUndo} className="complete-button">
                                 Undo Last
                             </button>
                         )}
                         {hasCompletedOrders && (
-                            <button onClick={onReset} className="px-4 py-2 text-base bg-white">
+                            <button onClick={onReset} className="complete-button">
                                 Reset Completed
                             </button>
                         )}
                         {hasActiveOrders && (
-                            <button onClick={onClearAll} className="px-4 py-2 text-base bg-white">
+                            <button onClick={onClearAll} className="complete-button">
                                 Clear All
                             </button>
                         )}
@@ -245,7 +287,8 @@
             const [orderState, setOrderState] = React.useState({
                 opacity: 0,
                 isDark: false,
-                isDelayed: false
+                isDelayed: false,
+                isNew: true
             });
             
             React.useEffect(() => {
@@ -254,26 +297,28 @@
                     const now = new Date().getTime();
                     const diffMinutes = (now - orderTime) / (1000 * 60);
                     
-                    {/* After 10 minutes, full black */}
+                    // New order state (first 2 minutes)
+                    const isNew = diffMinutes < 2;
+                    
                     if (diffMinutes >= 10) {
-                        return { opacity: 1, isDark: true, isDelayed: true };
+                        return { opacity: 1, isDark: true, isDelayed: true, isNew };
                     }
                     
-                    {/* Between 5 and 10 minutes, transition from brown to black */}
                     if (diffMinutes >= 5) {
-                        const blackness = (diffMinutes - 5) / 5; // 0 to 1
+                        const blackness = (diffMinutes - 5) / 5;
                         return {
                             opacity: 0.7 + (blackness * 0.3),
                             isDark: blackness > 0.5,
-                            isDelayed: true
+                            isDelayed: true,
+                            isNew
                         };
                     }
                     
-                    {/* Up to 5 minutes, brown color */}
                     return {
                         opacity: Math.min(diffMinutes / 5, 0.7),
                         isDark: false,
-                        isDelayed: false
+                        isDelayed: false,
+                        isNew
                     };
                 };
                 
@@ -292,54 +337,55 @@
                         className={`brew-indicator ${orderState.isDark ? 'dark' : ''}`}
                         style={{ opacity: orderState.opacity }}
                     />
-                    <div className="flex justify-between items-start">
-                        <div className="order-number">
-                            No. {orderNumber}
+                    {orderState.isNew && <div className="new-order-indicator" />}
+                    
+                    <div className="flex flex-col">
+                        <div className="flex justify-between items-center">
+                            <div className="order-number">
+                                No. {orderNumber}
+                            </div>
+                            <button
+                                onClick={() => onComplete(order.id)}
+                                className="complete-button"
+                            >
+                                Complete
+                            </button>
                         </div>
-                        <button
-                            onClick={() => onComplete(order.id)}
-                            className="px-3 py-1 text-base"
-                        >
-                            Complete
-                        </button>
+
+                        <div className="order-items">
+                            {order.items.map((item, index) => (
+                                <div key={index} className="order-item">
+                                    <span className="font-bold mr-2 text-lg min-w-[2rem]">
+                                        {item.quantity}x
+                                    </span>
+                                    <div className="main-text flex-1">
+                                        <span className="text-lg">{item.name}</span>
+                                        {item.variant && (
+                                            <span className="secondary-text">
+                                                {' - '}
+                                                {item.variant}
+                                            </span>
+                                        )}
+                                        {item.comment && (
+                                            <div className="secondary-text">
+                                                {item.comment}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
                     </div>
 
-                    <div className="text-right mt-1">
-                        <div className={`text-base font-medium ${orderState.isDelayed ? 'delayed-text warning' : ''}`}>
+                    <div className="absolute top-3 right-3">
+                        <div className={`text-base font-medium ${orderState.isDelayed ? 'text-red-500' : ''}`}>
                             {new Date(order.timestamp).toLocaleTimeString('en-US', {
                                 hour12: false,
                                 hour: '2-digit',
                                 minute: '2-digit'
                             })}
                         </div>
-                        <div className={`text-sm ${orderState.isDelayed ? 'delayed-text warning' : 'secondary-text'}`}>
-                            {formatTimeDiff(order.timestamp)}
-                        </div>
                     </div>
-
-                    <ul className="mt-2 space-y-2">
-                        {order.items.map((item, index) => (
-                            <li key={index} className="text-base flex items-baseline">
-                                <span className="font-bold mr-2 text-lg min-w-[2rem]">
-                                    {item.quantity}x
-                                </span>
-                                <div className="main-text flex-1">
-                                    <span className="text-lg">{item.name}</span>
-                                    {item.variant && (
-                                        <span className="secondary-text text-base">
-                                            {' - '}
-                                            {item.variant}
-                                        </span>
-                                    )}
-                                    {item.comment && (
-                                        <div className="secondary-text text-sm">
-                                            {item.comment}
-                                        </div>
-                                    )}
-                                </div>
-                            </li>
-                        ))}
-                    </ul>
                 </div>
             );
         }
@@ -372,12 +418,12 @@
                     
                     oscillator.type = 'sine';
                     oscillator.frequency.setValueAtTime(440, context.currentTime);
-                    gainNode.gain.setValueAtTime(1.0, context.currentTime);
+                    gainNode.gain.setValueAtTime(0.5, context.currentTime);
                     
                     oscillator.start(context.currentTime);
-                    oscillator.stop(context.currentTime + 0.3);
+                    oscillator.stop(context.currentTime + 0.2);
                     
-                    gainNode.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 0.3);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 0.2);
                 } catch (error) {
                     console.error('Error playing notification:', error);
                 }
@@ -391,7 +437,7 @@
                         return orderDate === today;
                     })
                     .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-            }, [orders]);
+                    }, [orders]);
 
             React.useEffect(() => {
                 const currentOrderIds = new Set(activeOrders.map(order => order.id));
@@ -534,7 +580,7 @@
             }, [orders]);
 
             return (
-                <div className="p-4 max-w-6xl mx-auto">
+                <div className="p-4 max-w-6xl mx-auto relative">
                     <Header
                         onReset={resetCompletedOrders}
                         onClearAll={clearAllOrders}
@@ -569,6 +615,10 @@
                                 isLastCompleted={order.id === lastCompletedOrder}
                             />
                         ))}
+                    </div>
+
+                    <div className="last-order-info">
+                        Last Order: {formatTimeDiff(lastOrderTime)}
                     </div>
                 </div>
             );
