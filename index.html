@@ -14,8 +14,8 @@
         }
         .order-card {
             border: 2px solid #000000;
-            margin-bottom: 1rem;
-            padding: 1rem;
+            margin-bottom: 1.5rem;
+            padding: 1.5rem;
             position: relative;
             overflow: hidden;
             background-color: #ffffff;
@@ -27,22 +27,15 @@
             left: 0;
             width: 100%;
             height: 100%;
+            background-color: #4A2C1A;
             opacity: 0;
             transition: all 0.5s ease;
             pointer-events: none;
             mix-blend-mode: multiply;
         }
         
-        .brew-indicator.brown {
-            background-color: #4A2C1A;
-        }
-        
-        .brew-indicator.black {
+        .brew-indicator.dark {
             background-color: #000000;
-        }
-
-        .text-danger {
-            color: #FF0000 !important;
         }
         
         @media (prefers-color-scheme: dark) {
@@ -54,12 +47,8 @@
         
         @media (monochrome) {
             .brew-indicator {
-                background-color: #000000 !important;
+                background-color: #000000;
                 mix-blend-mode: normal;
-            }
-            .text-danger {
-                color: #000000 !important;
-                font-weight: bold;
             }
         }
         .header-card {
@@ -92,7 +81,6 @@
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useEffect, useCallback, useMemo, useRef } = React;
         function formatTimeDiff(timestamp) {
             if (!timestamp) return '';
             const diff = Math.floor((new Date() - new Date(timestamp)) / 1000);
@@ -138,29 +126,27 @@
 
             return (
                 <div className="header-card">
-                    <div className="flex justify-between items-center">
+                    <div className="flex justify-between items-start mb-4">
                         <div className="flex-1">
                             <div className="flex items-baseline">
-                                <h1 className="text-3xl font-bold mr-2">Middle Street Coffee</h1>
-                                <div className="version-text text-xs opacity-50">v{version}</div>
+                                <h1 className="text-4xl font-bold mr-4">Middle Street Coffee</h1>
+                                <div className="version-text">v{version}</div>
                             </div>
-                            <div className="flex items-center space-x-4">
-                                <div className="text-lg font-medium">{dayName}</div>
-                                {activeOrderCount > 0 && (
-                                    <div className="text-lg font-bold">
-                                        {activeOrderCount} Active Order{activeOrderCount !== 1 ? 's' : ''}
-                                    </div>
-                                )}
-                            </div>
+                            <div className="text-xl font-medium">{dayName}</div>
                         </div>
                         <div className="text-right">
-                            <div className="text-3xl font-bold">
+                            <div className="text-3xl font-bold mb-1">
                                 {time.toLocaleTimeString('en-US', {
                                     hour12: false,
                                     hour: '2-digit',
                                     minute: '2-digit'
                                 })}
                             </div>
+                            {activeOrderCount > 0 && (
+                                <div className="text-xl font-bold">
+                                    {activeOrderCount} Active Order{activeOrderCount !== 1 ? 's' : ''}
+                                </div>
+                            )}
                         </div>
                     </div>
                     
@@ -195,92 +181,88 @@
         }
 
         function Order({ order, orderNumber, onComplete, onUndo, isLastCompleted }) {
-            const [opacity, setOpacity] = useState(0);
-            const [indicatorState, setIndicatorState] = useState('none'); // none, brown, black
+            const [orderState, setOrderState] = React.useState({
+                opacity: 0,
+                isDark: false
+            });
             
-            const [indicatorState, setIndicatorState] = useState('none'); // none, brown, black
-
-            useEffect(() => {
+            React.useEffect(() => {
                 const calculateAging = () => {
                     const orderTime = new Date(order.timestamp).getTime();
                     const now = new Date().getTime();
                     const diffMinutes = (now - orderTime) / (1000 * 60);
                     
+                    // After 10 minutes, turn black with full opacity
                     if (diffMinutes >= 10) {
-                        setIndicatorState('black');
-                        return 1;
+                        return { opacity: 1, isDark: true };
                     }
                     
+                    // Between 5 and 10 minutes, transition to black
                     if (diffMinutes >= 5) {
-                        setIndicatorState('black');
-                        const transitionProgress = (diffMinutes - 5) / 5; // 0 to 1 over 5-10 minutes
-                        return 0.7 + (transitionProgress * 0.3); // Transition from 0.7 to 1.0
+                        return {
+                            opacity: (diffMinutes - 5) / 5,
+                            isDark: true
+                        };
                     }
                     
-                    if (diffMinutes > 0) {
-                        setIndicatorState('brown');
-                        return Math.min(diffMinutes / 5, 0.7); // Max 0.7 opacity for brown
-                    }
-
-                    setIndicatorState('none');
-                    return 0;
+                    // Up to 5 minutes, brown color
+                    return {
+                        opacity: Math.min(diffMinutes / 5, 1),
+                        isDark: false
+                    };
                 };
                 
-                const updateState = () => {
-                    setOpacity(calculateAging());
-                };
+                // Initial state
+                setOrderState(calculateAging());
                 
-                updateState();
-                const interval = setInterval(updateState, 5000);
+                // Update every 5 seconds
+                const interval = setInterval(() => {
+                    setOrderState(calculateAging());
+                }, 5000);
+                
                 return () => clearInterval(interval);
             }, [order.timestamp]);
 
             return (
                 <div className="order-card">
                     <div 
-                        className={`brew-indicator ${indicatorState}`}
-                        style={{ opacity }}
+                        className={`brew-indicator ${orderState.isDark ? 'dark' : ''}`}
+                        style={{ opacity: orderState.opacity * 0.7 }}
                     />
-                    <div className="grid grid-cols-[1fr,auto,auto] gap-4 items-start">
+                    <div className="flex justify-between items-start mb-6">
                         <div className="order-number">
                             No. {orderNumber}
                         </div>
                         <div className="text-right">
-                            <div className={`text-xl font-medium ${opacity > 0.7 ? 'text-danger' : ''}`}>
+                            <div className="text-xl font-medium">
                                 {new Date(order.timestamp).toLocaleTimeString('en-US', {
                                     hour12: false,
                                     hour: '2-digit',
                                     minute: '2-digit'
                                 })}
                             </div>
-                            <div className={`secondary-text text-base ${opacity > 0.7 ? 'text-danger' : ''}`}>
+                            <div className="secondary-text text-lg">
                                 {formatTimeDiff(order.timestamp)}
                             </div>
                         </div>
-                        <button
-                            onClick={() => onComplete(order.id)}
-                            className="px-4 py-2 text-lg self-center"
-                        >
-                            Mark Complete
-                        </button>
                     </div>
 
-                    <ul className="mt-3 space-y-2">
+                    <ul className="mb-6 space-y-4">
                         {order.items.map((item, index) => (
-                            <li key={index} className="text-base flex items-baseline">
-                                <span className="font-bold mr-2 text-xl min-w-[2rem]">
+                            <li key={index} className="text-lg flex items-baseline">
+                                <span className="font-bold mr-3 text-2xl min-w-[2.5rem]">
                                     {item.quantity}x
                                 </span>
                                 <div className="main-text flex-1">
-                                    <span className="text-lg">{item.name}</span>
+                                    <span className="text-xl">{item.name}</span>
                                     {item.variant && (
-                                        <span className="secondary-text text-base">
+                                        <span className="secondary-text text-lg">
                                             {' - '}
                                             {item.variant}
                                         </span>
                                     )}
                                     {item.comment && (
-                                        <div className="secondary-text text-base">
+                                        <div className="secondary-text text-lg">
                                             {item.comment}
                                         </div>
                                     )}
@@ -289,51 +271,45 @@
                         ))}
                     </ul>
 
-                    {isLastCompleted && (
-                        <div className="mt-2">
+                    <div className="flex justify-between">
+                        {isLastCompleted && (
                             <button
                                 onClick={onUndo}
-                                className="px-4 py-2 text-lg"
+                                className="px-6 py-3 text-xl"
                             >
                                 Undo Completion
                             </button>
+                        )}
+                        <div className="ml-auto">
+                            <button
+                                onClick={() => onComplete(order.id)}
+                                className="px-6 py-3 text-xl"
+                            >
+                                Mark Complete
+                            </button>
                         </div>
-                    )}
+                    </div>
                 </div>
             );
         }
 
         function OrdersDisplay() {
-            const [orders, setOrders] = useState([]);
-            const [completedOrders, setCompletedOrders] = useState(() => {
+            const [orders, setOrders] = React.useState([]);
+            const [completedOrders, setCompletedOrders] = React.useState(() => {
                 const saved = localStorage.getItem('completedOrders');
                 return new Set(saved ? JSON.parse(saved) : []);
             });
-            const [lastCompletedOrder, setLastCompletedOrder] = useState(null);
-            const [error, setError] = useState(null);
-            const [loading, setLoading] = useState(false);
-            const [lastUpdateTime, setLastUpdateTime] = useState(null);
-            const audioContextRef = useRef(null);
-            const previousOrderIdsRef = useRef(new Set());
+            const [lastCompletedOrder, setLastCompletedOrder] = React.useState(null);
+            const [error, setError] = React.useState(null);
+            const [loading, setLoading] = React.useState(false);
+            const [lastUpdateTime, setLastUpdateTime] = React.useState(null);
+            const audioContextRef = React.useRef(null);
+            const previousOrderIdsRef = React.useRef(new Set());
 
-            const activeOrders = React.useMemo(() => {
-                const today = new Date().toDateString();
-                return orders
-                    .filter(order => {
-                        const orderDate = new Date(order.timestamp).toDateString();
-                        return orderDate === today;
-                    })
-                    .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-            }, [orders]);
-
-            const playNotificationSound = async () => {
+            const playNotificationSound = () => {
                 try {
                     if (!audioContextRef.current) {
                         audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
-                        // Resume context if in suspended state (needed for some browsers)
-                        if (audioContextRef.current.state === 'suspended') {
-                            await audioContextRef.current.resume();
-                        }
                     }
                     
                     const context = audioContextRef.current;
@@ -356,30 +332,32 @@
                 }
             };
 
+            const activeOrders = React.useMemo(() => {
+                const today = new Date().toDateString();
+                return orders
+                    .filter(order => {
+                        const orderDate = new Date(order.timestamp).toDateString();
+                        return orderDate === today;
+                    })
+                    .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+            }, [orders]);
+
+            // Detect new orders and play sound
             React.useEffect(() => {
                 const currentOrderIds = new Set(activeOrders.map(order => order.id));
                 const hasNewOrders = activeOrders.some(order => !previousOrderIdsRef.current.has(order.id));
                 
                 if (hasNewOrders && previousOrderIdsRef.current.size > 0) {
-                    // Wrap in user interaction check for browsers that require it
-                    const playSound = async () => {
-                        try {
-                            await playNotificationSound();
-                        } catch (error) {
-                            console.error('Failed to play notification:', error);
-                        }
-                    };
-                    playSound();
+                    playNotificationSound();
                 }
                 
                 previousOrderIdsRef.current = currentOrderIds;
-            }, [activeOrders, playNotificationSound]);
+            }, [activeOrders]);
 
-            useEffect(() => {
-                fetchOrders();
-                const interval = setInterval(fetchOrders, 5000);
-                return () => clearInterval(interval);
-            }, [fetchOrders]);
+            // Save completed orders to localStorage
+            React.useEffect(() => {
+                localStorage.setItem('completedOrders', JSON.stringify([...completedOrders]));
+            }, [completedOrders]);
 
             const resetCompletedOrders = () => {
                 if (window.confirm('Are you sure you want to reset all completed orders?')) {
@@ -399,7 +377,7 @@
                 }
             };
 
-            const fetchOrders = useCallback(async () => {
+            const fetchOrders = async () => {
                 if (loading) return;
                 setLoading(true);
                 try {
@@ -411,32 +389,46 @@
                         setError(null);
                         setLastUpdateTime(new Date().toISOString());
                     } else {
-                        throw new Error(data.message);
+                        setError(data.message);
                     }
                 } catch (error) {
-                    console.error('Error fetching orders:', error);
                     setError(error.message);
-                } finally {
-                    setLoading(false);
                 }
-            }, [loading]);
+                setLoading(false);
+            };
 
-            useEffect(() => {
-                return () => {
-                    // Cleanup audio context on unmount
-                    if (audioContextRef.current) {
-                        audioContextRef.current.close();
-                    }
-                };
+            // Poll for orders every 5 seconds
+            React.useEffect(() => {
+                fetchOrders();
+                const interval = setInterval(fetchOrders, 5000);
+                return () => clearInterval(interval);
             }, []);
 
-            const toggleOrderComplete = (orderId) => {
-                setLastCompletedOrder(orderId);
-                setCompletedOrders(prev => {
-                    const newSet = new Set(prev);
-                    newSet.add(orderId);
-                    return newSet;
-                });
+            const toggleOrderComplete = async (orderId) => {
+                try {
+                    const response = await fetch('/.netlify/functions/mark-complete', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ orderId }),
+                    });
+
+                    if (response.ok) {
+                        setLastCompletedOrder(orderId);
+                        setCompletedOrders(prev => {
+                            const newSet = new Set(prev);
+                            newSet.add(orderId);
+                            return newSet;
+                        });
+                    } else {
+                        const data = await response.json();
+                        setError(data.message || 'Error marking order as complete');
+                    }
+                } catch (error) {
+                    console.error('Error marking order complete:', error);
+                    setError('Network error while marking order as complete');
+                }
             };
 
             const handleUndo = React.useCallback(() => {
@@ -455,17 +447,25 @@
                 return activeOrders[0].timestamp;
             }, [activeOrders]);
 
-            const getDailyOrderNumber = React.useCallback((orders, targetId) => {
+            const getDailyOrderNumber = (orders, targetId) => {
                 const today = new Date().toDateString();
-                const todayOrders = activeOrders.filter(order => 
-                    new Date(order.timestamp).toDateString() === today
+                let counter = 1;
+
+                const sortedOrders = [...orders].sort((a, b) =>
+                    new Date(a.timestamp) - new Date(b.timestamp)
                 );
-                
-                // Since activeOrders is already sorted newest first,
-                // we can just find the index and count from the end
-                const index = todayOrders.findIndex(order => order.id === targetId);
-                return index !== -1 ? todayOrders.length - index : null;
-            }, [activeOrders]);
+
+                for (const order of sortedOrders) {
+                    const orderDate = new Date(order.timestamp).toDateString();
+                    if (orderDate === today) {
+                        if (order.id === targetId) {
+                            return counter;
+                        }
+                        counter++;
+                    }
+                }
+                return null;
+            };
 
             const visibleOrders = activeOrders.filter(order => !completedOrders.has(order.id));
 
