@@ -44,7 +44,7 @@
             opacity: 0;
             transition: all 0.5s ease;
             pointer-events: none;
-            mix-blend-mode: multiply;
+            z-index: -1;
         }
         
         .brew-indicator.dark {
@@ -101,13 +101,21 @@
         
         .dark-background .main-text,
         .dark-background .secondary-text,
-        .dark-background .order-number {
+        .dark-background .order-number,
+        .dark-background button {
             color: #FFFFFF;
+            border-color: #FFFFFF;
+            position: relative;
+            z-index: 1;
+        }
+
+        .dark-background.order-card {
+            border-color: #FFFFFF;
         }
 
         .main-text.warning,
         .secondary-text.warning {
-            color: #FF0000;
+            color: #FF0000 !important;
         }
         
         .version-text {
@@ -263,7 +271,7 @@
             }, [order.timestamp]);
 
             return (
-                <div className={`order-card ${orderState.opacity > 0.5 ? 'dark-background' : ''}`}>
+                <div className={`order-card ${orderState.opacity > 0.3 ? 'dark-background' : ''}`}>
                     <div 
                         className={`brew-indicator ${orderState.isDark ? 'dark' : ''}`}
                         style={{ opacity: orderState.opacity }}
