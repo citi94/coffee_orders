@@ -107,8 +107,10 @@
         }
         
         .secondary-text {
-            font-weight: 500;
+            font-weight: 400;
             transition: color 0.5s ease;
+            font-size: 0.9em;
+            opacity: 0.8;
         }
         
         .dark-background .main-text,
@@ -138,8 +140,9 @@
 
         .compact-layout {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 1rem;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 0.75rem;
+            align-items: start;
         }
     </style>
 </head>
@@ -217,19 +220,19 @@
                         </div>
                     </div>
                     
-                    <div className="flex gap-4 mt-4">
+                    <div className="flex gap-2 mt-2">
                         {canUndo && (
-                            <button onClick={onUndo} className="px-4 py-2 text-base">
+                            <button onClick={onUndo} className="px-4 py-2 text-base bg-white">
                                 Undo Last
                             </button>
                         )}
                         {hasCompletedOrders && (
-                            <button onClick={onReset} className="px-4 py-2 text-base">
+                            <button onClick={onReset} className="px-4 py-2 text-base bg-white">
                                 Reset Completed
                             </button>
                         )}
                         {hasActiveOrders && (
-                            <button onClick={onClearAll} className="px-4 py-2 text-base">
+                            <button onClick={onClearAll} className="px-4 py-2 text-base bg-white">
                                 Clear All
                             </button>
                         )}
