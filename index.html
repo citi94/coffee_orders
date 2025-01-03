@@ -105,7 +105,7 @@
                     
                     {timeSinceLastUpdate > 60 && (
                         <div className="border-2 border-black px-4 py-3 mb-4">
-                            <div className="text-xl font-bold">⚠️ Connection Warning</div>
+                            <div className="text-xl font-bold">âš ï¸ Connection Warning</div>
                             <div className="text-lg">
                                 Last Update: {formatTimeDiff(lastUpdateTime)}
                             </div>
@@ -129,24 +129,30 @@
             const dayName = time.toLocaleDateString('en-US', { weekday: 'long' });
 
             return (
-                		<div className="header-card">
-    						<div className="flex justify-between items-start">
-        						<div>
-            						<div className="flex items-baseline">
-                						<h1 className="text-3xl font-bold">Middle Street Coffee</h1>
-                						<span className="text-sm ml-2 text-gray-600">v2.6</span>
-            					</div>
-            					<div className="text-xl font-medium">Friday</div>
-        					</div>
-        					<div className="text-center flex-1 mx-4">
-            					<div className="text-xl font-bold">Total Orders Today: 45</div>
-        					</div>
-        					<div className="text-right">
-            					<div className="text-3xl font-bold">10:50</div>
-            					<div className="text-xl font-bold">29 Active Orders</div>
-        					</div>
-    					</div>
-					</div>
+                <div className="header-card">
+                    <div className="flex justify-between items-start mb-4">
+                        <div className="flex-1">
+                            <div className="flex items-baseline">
+                                <h1 className="text-4xl font-bold mr-4">Middle Street Coffee</h1>
+                                <div className="version-text">v{version}</div>
+                            </div>
+                            <div className="text-xl font-medium">{dayName}</div>
+                        </div>
+                        <div className="text-right">
+                            <div className="text-3xl font-bold mb-1">
+                                {time.toLocaleTimeString('en-US', {
+                                    hour12: false,
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                })}
+                            </div>
+                            {activeOrderCount > 0 && (
+                                <div className="text-xl font-bold">
+                                    {activeOrderCount} Active Order{activeOrderCount !== 1 ? 's' : ''}
+                                </div>
+                            )}
+                        </div>
+                    </div>
                     
                     <div className="flex gap-6 mt-6">
                         {canUndo && (
