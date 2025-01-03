@@ -91,12 +91,23 @@
         
         .main-text {
             font-weight: 500;
-            color: #000000;
+            transition: color 0.5s ease;
         }
         
         .secondary-text {
-            color: #000000;
             font-weight: 500;
+            transition: color 0.5s ease;
+        }
+        
+        .dark-background .main-text,
+        .dark-background .secondary-text,
+        .dark-background .order-number {
+            color: #FFFFFF;
+        }
+
+        .main-text.warning,
+        .secondary-text.warning {
+            color: #FF0000;
         }
         
         .version-text {
@@ -252,7 +263,7 @@
             }, [order.timestamp]);
 
             return (
-                <div className="order-card">
+                <div className={`order-card ${orderState.opacity > 0.5 ? 'dark-background' : ''}`}>
                     <div 
                         className={`brew-indicator ${orderState.isDark ? 'dark' : ''}`}
                         style={{ opacity: orderState.opacity }}
