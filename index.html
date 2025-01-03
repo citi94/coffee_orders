@@ -29,9 +29,13 @@
             height: 100%;
             background-color: #4A2C1A;
             opacity: 0;
-            transition: opacity 0.5s ease;
+            transition: all 0.5s ease;
             pointer-events: none;
             mix-blend-mode: multiply;
+        }
+        
+        .brew-indicator.dark {
+            background-color: #000000;
         }
         
         @media (prefers-color-scheme: dark) {
@@ -49,14 +53,14 @@
         }
         .header-card {
             border: 2px solid #000000;
-            margin-bottom: 1.5rem;
-            padding: 1.5rem;
+            margin-bottom: 1rem;
+            padding: 1rem;
         }
         button {
             border: 2px solid #000000;
         }
         .order-number {
-            font-size: 2.5rem;
+            font-size: 2rem;
             font-weight: 800;
             line-height: 1;
         }
@@ -66,6 +70,14 @@
         .secondary-text {
             color: #404040;
             font-weight: 500;
+        }
+        .version-text {
+            font-size: 0.875rem;
+            color: #666666;
+        }
+        .order-card {
+            padding: 1rem;
+            margin-bottom: 1rem;
         }
     </style>
 </head>
@@ -118,23 +130,27 @@
 
             return (
                 <div className="header-card">
-                    <div className="flex justify-between items-start mb-6">
-                        <div>
-                            <h1 className="text-5xl font-bold mb-3">Middle Street Coffee</h1>
-                            <div className="text-2xl font-medium">{dayName}</div>
-                            <div className="text-xl">Version: {version}</div>
+                    <div className="flex justify-between items-start mb-4">
+                        <div className="flex-1">
+                            <div className="flex items-baseline">
+                                <h1 className="text-4xl font-bold mr-4">Middle Street Coffee</h1>
+                                <div className="version-text">v{version}</div>
+                            </div>
+                            <div className="text-xl font-medium">{dayName}</div>
+                        </div>
+                        <div className="text-right">
+                            <div className="text-3xl font-bold mb-1">
+                                {time.toLocaleTimeString('en-US', {
+                                    hour12: false,
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                })}
+                            </div>
                             {activeOrderCount > 0 && (
-                                <div className="text-2xl font-bold mt-3">
-                                    Active Orders: {activeOrderCount}
+                                <div className="text-xl font-bold">
+                                    {activeOrderCount} Active Order{activeOrderCount !== 1 ? 's' : ''}
                                 </div>
                             )}
-                        </div>
-                        <div className="text-4xl font-bold">
-                            {time.toLocaleTimeString('en-US', {
-                                hour12: false,
-                                hour: '2-digit',
-                                minute: '2-digit'
-                            })}
                         </div>
                     </div>
                     
@@ -170,24 +186,38 @@
 
         function Order({ order, orderNumber, onComplete, onUndo, isLastCompleted }) {
             const [opacity, setOpacity] = React.useState(0);
+            const [isDark, setIsDark] = React.useState(false);
             
             React.useEffect(() => {
-                const calculateOpacity = () => {
+                const calculateAging = () => {
                     const orderTime = new Date(order.timestamp).getTime();
                     const now = new Date().getTime();
                     const diffMinutes = (now - orderTime) / (1000 * 60);
                     
-                    // Calculate opacity based on time waiting (max 5 minutes)
+                    // After 10 minutes, turn black
+                    if (diffMinutes >= 10) {
+                        setIsDark(true);
+                        return 1;
+                    }
+                    
+                    // Between 5 and 10 minutes, transition to black
+                    if (diffMinutes >= 5) {
+                        setIsDark(true);
+                        return (diffMinutes - 5) / 5; // Gradually increase opacity from 5-10 minutes
+                    }
+                    
+                    // Up to 5 minutes, brown color
+                    setIsDark(false);
                     return Math.min(diffMinutes / 5, 1);
                 };
                 
-                // Initial opacity
-                setOpacity(calculateOpacity());
+                // Initial state
+                setOpacity(calculateAging());
                 
-                // Update with the main page refresh
+                // Update every 30 seconds
                 const interval = setInterval(() => {
-                    setOpacity(calculateOpacity());
-                }, 5000); // Match the main page refresh rate
+                    setOpacity(calculateAging());
+                }, 30000);
                 
                 return () => clearInterval(interval);
             }, [order.timestamp]);
@@ -195,8 +225,8 @@
             return (
                 <div className="order-card">
                     <div 
-                        className="brew-indicator"
-                        style={{ opacity: opacity * 0.5 }} // 50% maximum opacity
+                        className={`brew-indicator ${isDark ? 'dark' : ''}`}
+                        style={{ opacity: opacity * 0.7 }}
                     />
                     <div className="flex justify-between items-start mb-6">
                         <div className="order-number">
@@ -218,20 +248,20 @@
 
                     <ul className="mb-6 space-y-4">
                         {order.items.map((item, index) => (
-                            <li key={index} className="text-xl flex items-start">
-                                <span className="font-bold mr-6 text-3xl min-w-[3rem]">
+                            <li key={index} className="text-lg flex items-baseline">
+                                <span className="font-bold mr-3 text-2xl min-w-[2.5rem]">
                                     {item.quantity}x
                                 </span>
-                                <div className="main-text">
-                                    <span className="text-2xl">{item.name}</span>
+                                <div className="main-text flex-1">
+                                    <span className="text-xl">{item.name}</span>
                                     {item.variant && (
-                                        <span className="secondary-text text-xl">
+                                        <span className="secondary-text text-lg">
                                             {' - '}
                                             {item.variant}
                                         </span>
                                     )}
                                     {item.comment && (
-                                        <div className="secondary-text text-xl mt-1">
+                                        <div className="secondary-text text-lg">
                                             {item.comment}
                                         </div>
                                     )}
@@ -272,8 +302,9 @@
             const [error, setError] = React.useState(null);
             const [loading, setLoading] = React.useState(false);
             const [lastUpdateTime, setLastUpdateTime] = React.useState(null);
-            const [previousOrderCount, setPreviousOrderCount] = React.useState(0);
             const audioContextRef = React.useRef(null);
+            const previousOrderIdsRef = React.useRef(new Set());
+
             const playNotificationSound = () => {
                 try {
                     // Initialize AudioContext on first user interaction
@@ -302,16 +333,22 @@
                 } catch (error) {
                     console.error('Error playing notification:', error);
                 }
-            };  // Base64 beep sound truncated for brevity
+            };
 
             // Detect new orders and play sound
             React.useEffect(() => {
-                const visibleOrderCount = activeOrders.filter(order => !completedOrders.has(order.id)).length;
-                if (visibleOrderCount > previousOrderCount) {
+                const currentOrderIds = new Set(activeOrders.map(order => order.id));
+                
+                // Check for new orders by comparing current and previous order IDs
+                const hasNewOrders = activeOrders.some(order => !previousOrderIdsRef.current.has(order.id));
+                
+                if (hasNewOrders && previousOrderIdsRef.current.size > 0) {
                     playNotificationSound();
                 }
-                setPreviousOrderCount(visibleOrderCount);
-            }, [activeOrders, completedOrders]);
+                
+                // Update previous order IDs
+                previousOrderIdsRef.current = currentOrderIds;
+            }, [activeOrders]);
 
             // Save completed orders to localStorage
             React.useEffect(() => {
