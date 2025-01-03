@@ -8,14 +8,27 @@
     <script src="https://unpkg.com/babel-standalone@6.26.0/babel.min.js"></script>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <style>
+        @media (orientation: portrait) {
+            html {
+                transform: rotate(-90deg);
+                transform-origin: left top;
+                width: 100vh;
+                height: 100vw;
+                position: absolute;
+                top: 100%;
+                left: 0;
+            }
+        }
+        
         body {
             background-color: #ffffff;
             color: #000000;
         }
+        
         .order-card {
             border: 2px solid #000000;
-            margin-bottom: 1.5rem;
-            padding: 1.5rem;
+            margin-bottom: 1rem;
+            padding: 1rem;
             position: relative;
             overflow: hidden;
             background-color: #ffffff;
@@ -37,6 +50,14 @@
         .brew-indicator.dark {
             background-color: #000000;
         }
+
+        .delayed-text {
+            transition: color 0.5s ease;
+        }
+        
+        .delayed-text.warning {
+            color: #FF0000;
+        }
         
         @media (prefers-color-scheme: dark) {
             body {
@@ -51,29 +72,42 @@
                 mix-blend-mode: normal;
             }
         }
+        
         .header-card {
             border: 2px solid #000000;
             margin-bottom: 1rem;
-            padding: 1rem;
+            padding: 0.75rem;
         }
+        
         button {
             border: 2px solid #000000;
         }
+        
         .order-number {
-            font-size: 2rem;
+            font-size: 1.75rem;
             font-weight: 800;
             line-height: 1;
         }
+        
         .main-text {
             font-weight: 500;
+            color: #000000;
         }
+        
         .secondary-text {
-            color: #404040;
+            color: #000000;
             font-weight: 500;
         }
+        
         .version-text {
-            font-size: 0.875rem;
+            font-size: 0.75rem;
             color: #666666;
+        }
+
+        .compact-layout {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1rem;
         }
     </style>
 </head>
@@ -89,20 +123,20 @@
             return `${Math.floor(diff / 3600)} hours ago`;
         }
 
-        function StatusInfo({ lastOrderTime, lastUpdateTime, isLoading }) {
+        function StatusInfo({ lastOrderTime, lastUpdateTime, isLoading, totalOrders }) {
             const timeSinceLastUpdate = lastUpdateTime ? 
                 Math.floor((new Date() - new Date(lastUpdateTime)) / 1000) : 0;
 
             return (
                 <div>
-                    <div className="text-xl mb-4 main-text">
+                    <div className="text-lg mb-2 main-text">
                         <div>Last Order: {formatTimeDiff(lastOrderTime)}</div>
                     </div>
                     
                     {timeSinceLastUpdate > 60 && (
-                        <div className="border-2 border-black px-4 py-3 mb-4">
-                            <div className="text-xl font-bold">⚠️ Connection Warning</div>
-                            <div className="text-lg">
+                        <div className="border-2 border-black px-3 py-2 mb-2">
+                            <div className="text-lg font-bold">⚠️ Connection Warning</div>
+                            <div className="text-base">
                                 Last Update: {formatTimeDiff(lastUpdateTime)}
                             </div>
                         </div>
@@ -111,7 +145,7 @@
             );
         }
 
-        function Header({ onReset, onClearAll, onUndo, hasCompletedOrders, hasActiveOrders, activeOrderCount, canUndo }) {
+        function Header({ onReset, onClearAll, onUndo, hasCompletedOrders, hasActiveOrders, activeOrderCount, totalOrderCount, canUndo }) {
             const [time, setTime] = React.useState(new Date());
             const version = "2.6";
 
@@ -126,53 +160,45 @@
 
             return (
                 <div className="header-card">
-                    <div className="flex justify-between items-start mb-4">
+                    <div className="flex justify-between items-center">
                         <div className="flex-1">
                             <div className="flex items-baseline">
-                                <h1 className="text-4xl font-bold mr-4">Middle Street Coffee</h1>
+                                <h1 className="text-3xl font-bold mr-2">Middle Street Coffee</h1>
                                 <div className="version-text">v{version}</div>
                             </div>
-                            <div className="text-xl font-medium">{dayName}</div>
+                            <div className="flex items-center gap-4">
+                                <div className="text-lg font-medium">{dayName}</div>
+                                <div className="text-lg font-medium">Total Orders: {totalOrderCount}</div>
+                            </div>
                         </div>
                         <div className="text-right">
-                            <div className="text-3xl font-bold mb-1">
+                            <div className="text-2xl font-bold">
                                 {time.toLocaleTimeString('en-US', {
                                     hour12: false,
                                     hour: '2-digit',
                                     minute: '2-digit'
                                 })}
                             </div>
-                            {activeOrderCount > 0 && (
-                                <div className="text-xl font-bold">
-                                    {activeOrderCount} Active Order{activeOrderCount !== 1 ? 's' : ''}
-                                </div>
-                            )}
+                            <div className="text-lg font-bold">
+                                {activeOrderCount} Active Order{activeOrderCount !== 1 ? 's' : ''}
+                            </div>
                         </div>
                     </div>
                     
-                    <div className="flex gap-6 mt-6">
+                    <div className="flex gap-4 mt-4">
                         {canUndo && (
-                            <button
-                                onClick={onUndo}
-                                className="px-6 py-3 text-xl"
-                            >
-                                Undo Last Completion
+                            <button onClick={onUndo} className="px-4 py-2 text-base">
+                                Undo Last
                             </button>
                         )}
                         {hasCompletedOrders && (
-                            <button
-                                onClick={onReset}
-                                className="px-6 py-3 text-xl"
-                            >
-                                Reset Completed Orders
+                            <button onClick={onReset} className="px-4 py-2 text-base">
+                                Reset Completed
                             </button>
                         )}
                         {hasActiveOrders && (
-                            <button
-                                onClick={onClearAll}
-                                className="px-6 py-3 text-xl"
-                            >
-                                Clear All Orders
+                            <button onClick={onClearAll} className="px-4 py-2 text-base">
+                                Clear All
                             </button>
                         )}
                     </div>
@@ -183,7 +209,8 @@
         function Order({ order, orderNumber, onComplete, onUndo, isLastCompleted }) {
             const [orderState, setOrderState] = React.useState({
                 opacity: 0,
-                isDark: false
+                isDark: false,
+                isDelayed: false
             });
             
             React.useEffect(() => {
@@ -192,30 +219,31 @@
                     const now = new Date().getTime();
                     const diffMinutes = (now - orderTime) / (1000 * 60);
                     
-                    // After 10 minutes, turn black with full opacity
+                    {/* After 10 minutes, full black */}
                     if (diffMinutes >= 10) {
-                        return { opacity: 1, isDark: true };
+                        return { opacity: 1, isDark: true, isDelayed: true };
                     }
                     
-                    // Between 5 and 10 minutes, transition to black
+                    {/* Between 5 and 10 minutes, transition from brown to black */}
                     if (diffMinutes >= 5) {
+                        const blackness = (diffMinutes - 5) / 5; // 0 to 1
                         return {
-                            opacity: (diffMinutes - 5) / 5,
-                            isDark: true
+                            opacity: 0.7 + (blackness * 0.3),
+                            isDark: blackness > 0.5,
+                            isDelayed: true
                         };
                     }
                     
-                    // Up to 5 minutes, brown color
+                    {/* Up to 5 minutes, brown color */}
                     return {
-                        opacity: Math.min(diffMinutes / 5, 1),
-                        isDark: false
+                        opacity: Math.min(diffMinutes / 5, 0.7),
+                        isDark: false,
+                        isDelayed: false
                     };
                 };
                 
-                // Initial state
                 setOrderState(calculateAging());
                 
-                // Update every 5 seconds
                 const interval = setInterval(() => {
                     setOrderState(calculateAging());
                 }, 5000);
@@ -227,42 +255,49 @@
                 <div className="order-card">
                     <div 
                         className={`brew-indicator ${orderState.isDark ? 'dark' : ''}`}
-                        style={{ opacity: orderState.opacity * 0.7 }}
+                        style={{ opacity: orderState.opacity }}
                     />
-                    <div className="flex justify-between items-start mb-6">
+                    <div className="flex justify-between items-start">
                         <div className="order-number">
                             No. {orderNumber}
                         </div>
-                        <div className="text-right">
-                            <div className="text-xl font-medium">
-                                {new Date(order.timestamp).toLocaleTimeString('en-US', {
-                                    hour12: false,
-                                    hour: '2-digit',
-                                    minute: '2-digit'
-                                })}
-                            </div>
-                            <div className="secondary-text text-lg">
-                                {formatTimeDiff(order.timestamp)}
-                            </div>
+                        <button
+                            onClick={() => onComplete(order.id)}
+                            className="px-3 py-1 text-base"
+                        >
+                            Complete
+                        </button>
+                    </div>
+
+                    <div className="text-right mt-1">
+                        <div className={`text-base font-medium ${orderState.isDelayed ? 'delayed-text warning' : ''}`}>
+                            {new Date(order.timestamp).toLocaleTimeString('en-US', {
+                                hour12: false,
+                                hour: '2-digit',
+                                minute: '2-digit'
+                            })}
+                        </div>
+                        <div className={`text-sm ${orderState.isDelayed ? 'delayed-text warning' : 'secondary-text'}`}>
+                            {formatTimeDiff(order.timestamp)}
                         </div>
                     </div>
 
-                    <ul className="mb-6 space-y-4">
+                    <ul className="mt-2 space-y-2">
                         {order.items.map((item, index) => (
-                            <li key={index} className="text-lg flex items-baseline">
-                                <span className="font-bold mr-3 text-2xl min-w-[2.5rem]">
+                            <li key={index} className="text-base flex items-baseline">
+                                <span className="font-bold mr-2 text-lg min-w-[2rem]">
                                     {item.quantity}x
                                 </span>
                                 <div className="main-text flex-1">
-                                    <span className="text-xl">{item.name}</span>
+                                    <span className="text-lg">{item.name}</span>
                                     {item.variant && (
-                                        <span className="secondary-text text-lg">
+                                        <span className="secondary-text text-base">
                                             {' - '}
                                             {item.variant}
                                         </span>
                                     )}
                                     {item.comment && (
-                                        <div className="secondary-text text-lg">
+                                        <div className="secondary-text text-sm">
                                             {item.comment}
                                         </div>
                                     )}
@@ -270,25 +305,6 @@
                             </li>
                         ))}
                     </ul>
-
-                    <div className="flex justify-between">
-                        {isLastCompleted && (
-                            <button
-                                onClick={onUndo}
-                                className="px-6 py-3 text-xl"
-                            >
-                                Undo Completion
-                            </button>
-                        )}
-                        <div className="ml-auto">
-                            <button
-                                onClick={() => onComplete(order.id)}
-                                className="px-6 py-3 text-xl"
-                            >
-                                Mark Complete
-                            </button>
-                        </div>
-                    </div>
                 </div>
             );
         }
@@ -342,7 +358,6 @@
                     .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
             }, [orders]);
 
-            // Detect new orders and play sound
             React.useEffect(() => {
                 const currentOrderIds = new Set(activeOrders.map(order => order.id));
                 const hasNewOrders = activeOrders.some(order => !previousOrderIdsRef.current.has(order.id));
@@ -354,7 +369,6 @@
                 previousOrderIdsRef.current = currentOrderIds;
             }, [activeOrders]);
 
-            // Save completed orders to localStorage
             React.useEffect(() => {
                 localStorage.setItem('completedOrders', JSON.stringify([...completedOrders]));
             }, [completedOrders]);
@@ -397,7 +411,6 @@
                 setLoading(false);
             };
 
-            // Poll for orders every 5 seconds
             React.useEffect(() => {
                 fetchOrders();
                 const interval = setInterval(fetchOrders, 5000);
@@ -477,8 +490,16 @@
                 });
             }, [orders, completedOrders]);
 
+            const totalOrderCount = React.useMemo(() => {
+                const today = new Date().toDateString();
+                return orders.filter(order => {
+                    const orderDate = new Date(order.timestamp).toDateString();
+                    return orderDate === today;
+                }).length;
+            }, [orders]);
+
             return (
-                <div className="p-4 max-w-4xl mx-auto">
+                <div className="p-4 max-w-6xl mx-auto">
                     <Header
                         onReset={resetCompletedOrders}
                         onClearAll={clearAllOrders}
@@ -486,6 +507,7 @@
                         hasCompletedOrders={hasCompletedOrders}
                         hasActiveOrders={visibleOrders.length > 0}
                         activeOrderCount={visibleOrders.length}
+                        totalOrderCount={totalOrderCount}
                         canUndo={!!lastCompletedOrder}
                     />
 
@@ -501,7 +523,7 @@
                         </div>
                     )}
 
-                    <div className="space-y-4">
+                    <div className="compact-layout">
                         {visibleOrders.map(order => (
                             <Order
                                 key={order.id}
