@@ -217,7 +217,7 @@
                 // Update every 30 seconds
                 const interval = setInterval(() => {
                     setOpacity(calculateAging());
-                }, 30000);
+                }, 5000);
                 
                 return () => clearInterval(interval);
             }, [order.timestamp]);
