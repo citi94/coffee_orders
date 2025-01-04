@@ -345,36 +345,32 @@
                     />
                     {orderState.isNew && <div className="new-order-indicator" />}
                     
-                    <div className="flex flex-col h-full pb-10">
-                        <div className="flex justify-between items-start">
-                            <div className="order-number">
-                                No. {orderNumber}
-                            </div>
-                        </div>
+                    <div className="order-number">
+                        No. {orderNumber}
+                    </div>
 
-                        <div className="order-items mt-2">
-                            {order.items.map((item, index) => (
-                                <div key={index} className="order-item">
-                                    <span className="font-bold mr-2 text-lg min-w-[2rem]">
-                                        {item.quantity}x
-                                    </span>
-                                    <div className="main-text flex-1">
-                                        <span className="text-lg">{item.name}</span>
-                                        {item.variant && (
-                                            <span className="secondary-text">
-                                                {' - '}
-                                                {item.variant}
-                                            </span>
-                                        )}
-                                        {item.comment && (
-                                            <div className="secondary-text">
-                                                {item.comment}
-                                            </div>
-                                        )}
-                                    </div>
+                    <div className="order-items mt-2">
+                        {order.items.map((item, index) => (
+                            <div key={index} className="order-item">
+                                <span className="font-bold mr-2 text-lg min-w-[2rem]">
+                                    {item.quantity}x
+                                </span>
+                                <div className="main-text flex-1">
+                                    <span className="text-lg">{item.name}</span>
+                                    {item.variant && (
+                                        <span className="secondary-text">
+                                            {' - '}
+                                            {item.variant}
+                                        </span>
+                                    )}
+                                    {item.comment && (
+                                        <div className="secondary-text">
+                                            {item.comment}
+                                        </div>
+                                    )}
                                 </div>
-                            ))}
-                        </div>
+                            </div>
+                        ))}
                     </div>
 
                     <div className="absolute top-2 right-2 text-right">
