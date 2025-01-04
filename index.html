@@ -221,7 +221,7 @@
         function Header({ onReset, onClearAll, onUndo, hasCompletedOrders, hasActiveOrders, 
                          activeOrderCount, totalOrderCount, canUndo, lastOrderTime }) {
             const [time, setTime] = React.useState(new Date());
-            const version = "2.6";
+            const version = "3.1";
 
             React.useEffect(() => {
                 const timer = setInterval(() => {
@@ -379,13 +379,16 @@
                         </div>
                     </div>
 
-                    <div className="absolute top-3 right-3">
-                        <div className={`text-base font-medium ${orderState.isDelayed ? 'warning-text' : ''}`}>
+                    <div className="absolute top-3 right-3 text-right">
+                        <div className="text-red-500 text-xl">
                             {new Date(order.timestamp).toLocaleTimeString('en-US', {
                                 hour12: false,
                                 hour: '2-digit',
                                 minute: '2-digit'
                             })}
+                        </div>
+                        <div className="text-red-500 text-base">
+                            {formatTimeDiff(order.timestamp)}
                         </div>
                     </div>
                 </div>
