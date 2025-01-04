@@ -139,12 +139,11 @@
         .dark-background button,
         .dark-background .font-bold {
             color: #FFFFFF;
-            border-color: #FFFFFF;
             position: relative;
             z-index: 1;
         }
 
-        .dark-background.order-card {
+        .dark-background button {
             border-color: #FFFFFF;
         }
 
@@ -189,10 +188,11 @@
         .order-box {
             display: flex;
             flex-direction: column;
-            border: 2px solid #000;
-            padding: 1rem;
-            height: 100%;
+            border: 2px solid #000 !important; /* Force black border */
             min-height: 200px;
+            height: 100%;
+            padding: 1rem;
+            box-sizing: border-box;
             background-color: var(--bg-color);
         }
 
@@ -213,6 +213,12 @@
 
         .orders-row > .order-box {
             height: 100%;
+        }
+
+        .complete-box {
+            border: 1px solid currentColor; /* Allow this to change with state */
+            padding: 0.5rem;
+            margin-top: 0.5rem;
         }
 
         /* Responsive adjustments */
