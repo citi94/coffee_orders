@@ -35,7 +35,6 @@
             overflow: hidden;
             background: transparent;
             min-height: 120px;
-            height: 100%;
         }
         
         /* Aging indicator */
@@ -115,7 +114,7 @@
         
         /* Order number - reduced size */
         .order-number {
-            font-size: 1.875rem; /* text-3xl in Tailwind */
+            font-size: 1.875rem;
             font-weight: 800;
             line-height: 1;
         }
@@ -222,7 +221,7 @@
         function Header({ onReset, onClearAll, onUndo, hasCompletedOrders, hasActiveOrders, 
                          activeOrderCount, totalOrderCount, canUndo, lastOrderTime }) {
             const [time, setTime] = React.useState(new Date());
-            const version = "3.0";
+            const version = "2.6";
 
             React.useEffect(() => {
                 const timer = setInterval(() => {
@@ -237,15 +236,17 @@
                 <div className="header-card">
                     <div className="flex justify-between items-start">
                         <div className="flex-1">
-                            <div className="flex items-center">
+                            <div className="flex items-baseline">
                                 <h1 className="text-3xl font-bold mr-2">Middle Street Coffee</h1>
                                 <div className="version-text">v{version}</div>
                             </div>
-                            <div className="flex items-baseline gap-2">
+                            <div className="flex items-baseline gap-4">
                                 <div className="text-lg font-medium">{dayName}</div>
                                 <div className="text-lg font-medium">Total Orders: {totalOrderCount}</div>
-                                <div className="text-lg font-medium">Active Orders: {activeOrderCount}</div>
-                                <div className="text-base text-gray-600">Last Order: {formatTimeDiff(lastOrderTime)}</div>
+                                <div className="text-lg font-medium">Active: {activeOrderCount}</div>
+                                <div className="text-base text-gray-600">
+                                    Last Order: {formatTimeDiff(lastOrderTime)}
+                                </div>
                             </div>
                         </div>
                         <div className="text-right">
@@ -280,123 +281,14 @@
             );
         }
 
+        // Order component
         function Order({ order, orderNumber, onComplete }) {
-            const [orderState, setOrderState] = React.useState(() => {
-                const orderTime = new Date(order.timestamp).getTime();
-                const now = new Date().getTime();
-                const diffMinutes = (now - orderTime) / (1000 * 60);
-                
-                return {
-                    opacity: Math.min(diffMinutes / 5, 0.7),
-                    isDark: diffMinutes >= 7.5,
-                    isDelayed: diffMinutes >= 5,
-                    isNew: diffMinutes < 2
-                };
+            const [orderState, setOrderState] = React.useState({
+                opacity: 0,
+                isDark: false,
+                isDelayed: false,
+                isNew: true
             });
-            
-            React.useEffect(() => {
-                const calculateAging = () => {
-                    const orderTime = new Date(order.timestamp).getTime();
-                    const now = new Date().getTime();
-                    const diffMinutes = (now - orderTime) / (1000 * 60);
-                    
-                    // Green highlight for first 2 minutes
-                    const isNew = diffMinutes < 2;
-                    
-                    // Full dark after 10 minutes
-                    if (diffMinutes >= 10) {
-                        return { opacity: 1, isDark: true, isDelayed: true, isNew };
-                    }
-                    
-                    // Dark brown between 5-10 minutes
-                    if (diffMinutes >= 5) {
-                        const darkening = (diffMinutes - 5) / 5;
-                        return {
-                            opacity: 0.7 + (darkening * 0.3),
-                            isDark: darkening > 0.5,
-                            isDelayed: true,
-                            isNew
-                        };
-                    }
-                    
-                    // Light brown up to 5 minutes
-                    return {
-                        opacity: Math.min(diffMinutes / 5, 0.7),
-                        isDark: false,
-                        isDelayed: false,
-                        isNew
-                    };
-                };
-                
-                setOrderState(calculateAging());
-                
-                const interval = setInterval(() => {
-                    setOrderState(calculateAging());
-                }, 5000);
-                
-                return () => clearInterval(interval);
-            }, [order.timestamp]);
-            
-            // Return the JSX
-
-            return (
-                <div className={`order-card ${orderState.opacity > 0.3 ? 'dark-background' : ''}`}>
-                    <div 
-                        className={`brew-indicator ${orderState.isDark ? 'dark' : ''}`}
-                        style={{ opacity: orderState.opacity }}
-                    />
-                    {orderState.isNew && <div className="new-order-indicator" />}
-                    
-                    <div className="order-number">
-                        No. {orderNumber}
-                    </div>
-
-                    <div className="order-items mt-2">
-                        {order.items.map((item, index) => (
-                            <div key={index} className="order-item">
-                                <span className="font-bold mr-2 text-lg min-w-[2rem]">
-                                    {item.quantity}x
-                                </span>
-                                <div className="main-text flex-1">
-                                    <span className="text-lg">{item.name}</span>
-                                    {item.variant && (
-                                        <span className="secondary-text">
-                                            {' - '}
-                                            {item.variant}
-                                        </span>
-                                    )}
-                                    {item.comment && (
-                                        <div className="secondary-text">
-                                            {item.comment}
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-
-                    <div className="absolute top-2 right-2 text-right">
-                        <div className={orderState.opacity > 0.3 ? 'text-white' : ''}>
-                            {new Date(order.timestamp).toLocaleTimeString('en-US', {
-                                hour12: false,
-                                hour: '2-digit',
-                                minute: '2-digit'
-                            })}
-                        </div>
-                        <div className="text-red-500 text-sm">
-                            {formatTimeDiff(order.timestamp)}
-                        </div>
-                    </div>
-
-                    <button
-                        onClick={() => onComplete(order.id)}
-                        className="action-button absolute bottom-2 right-2 w-24 bg-white bg-opacity-10"
-                    >
-                        Complete
-                    </button>
-                </div>
-            );
-        }
             
             React.useEffect(() => {
                 const calculateAging = () => {
@@ -454,7 +346,12 @@
                             <div className="order-number">
                                 No. {orderNumber}
                             </div>
-
+                            <button
+                                onClick={() => onComplete(order.id)}
+                                className="action-button"
+                            >
+                                Complete
+                            </button>
                         </div>
 
                         <div className="order-items mt-2">
@@ -482,27 +379,15 @@
                         </div>
                     </div>
 
-                    <div className="absolute top-2 right-2 text-right">
-                        <div className={orderState.opacity > 0.3 ? 'text-white' : ''}>
+                    <div className="absolute top-3 right-3">
+                        <div className={`text-base font-medium ${orderState.isDelayed ? 'warning-text' : ''}`}>
                             {new Date(order.timestamp).toLocaleTimeString('en-US', {
                                 hour12: false,
                                 hour: '2-digit',
                                 minute: '2-digit'
                             })}
                         </div>
-                        <div className="text-red-500 text-sm">
-                            {formatTimeDiff(order.timestamp)}
-                        </div>
                     </div>
-                    <div className="flex flex-col h-full pb-12">
-                        {/* Order content */}
-                    </div>
-                    <button
-                        onClick={() => onComplete(order.id)}
-                        className="action-button absolute bottom-2 right-2 w-24"
-                    >
-                        Complete
-                    </button>
                 </div>
             );
         }
