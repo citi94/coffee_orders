@@ -336,6 +336,8 @@
                 
                 return () => clearInterval(interval);
             }, [order.timestamp]);
+            
+            // Return the JSX
 
             return (
                 <div className={`order-card ${orderState.opacity > 0.3 ? 'dark-background' : ''}`}>
