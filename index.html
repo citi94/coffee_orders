@@ -344,12 +344,7 @@
                             <div className="order-number">
                                 No. {orderNumber}
                             </div>
-                            <button
-                                onClick={() => onComplete(order.id)}
-                                className="action-button"
-                            >
-                                Complete
-                            </button>
+
                         </div>
 
                         <div className="order-items mt-2">
@@ -377,20 +372,22 @@
                         </div>
                     </div>
 
-                    <div className="absolute top-0 right-0 p-2">
-                        <div className={`text-base ${orderState.isDelayed ? 'warning-text' : ''}`}>
-                            <div>
-                                {new Date(order.timestamp).toLocaleTimeString('en-US', {
-                                    hour12: false,
-                                    hour: '2-digit',
-                                    minute: '2-digit'
-                                })}
-                            </div>
-                            <div className="text-right text-sm text-red-600">
-                                {formatTimeDiff(order.timestamp)}
-                            </div>
+                    <button
+                        onClick={() => onComplete(order.id)}
+                        className="action-button absolute top-2 right-2"
+                    >
+                        <div>
+                            {new Date(order.timestamp).toLocaleTimeString('en-US', {
+                                hour12: false,
+                                hour: '2-digit',
+                                minute: '2-digit'
+                            })}
                         </div>
-                    </div>
+                        <div className="text-red-600 text-sm">
+                            {formatTimeDiff(order.timestamp)}
+                        </div>
+                        Complete
+                    </button>
                 </div>
             );
         }
