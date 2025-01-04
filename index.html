@@ -189,7 +189,7 @@
 <body>
     <div id="root"></div>
 
-    <script type="text/babel">
+    <script type="text/babel" data-type="module">
         // Time formatting utility
         function formatTimeDiff(timestamp) {
             if (!timestamp) return '';
@@ -379,15 +379,15 @@
                         </div>
                     </div>
 
-                    <div className="absolute top-3 right-3 text-right">
-                        <div className="text-red-500 text-xl">
+                    <div className="absolute bottom-3 right-3 text-right">
+                        <div className="text-red-500 text-lg font-semibold whitespace-nowrap">
                             {new Date(order.timestamp).toLocaleTimeString('en-US', {
                                 hour12: false,
                                 hour: '2-digit',
                                 minute: '2-digit'
                             })}
                         </div>
-                        <div className="text-red-500 text-base">
+                        <div className="text-red-500 text-sm whitespace-nowrap">
                             {formatTimeDiff(order.timestamp)}
                         </div>
                     </div>
