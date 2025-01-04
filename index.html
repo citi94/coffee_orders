@@ -34,7 +34,8 @@
             position: relative;
             overflow: hidden;
             background: transparent;
-            min-height: 120px;
+            min-height: 150px;
+            height: 100%;
         }
         
         /* Aging indicator */
@@ -373,20 +374,23 @@
                     </div>
 
                     <div className="absolute top-2 right-2 text-right">
-                        <div>
+                        <div className={orderState.opacity > 0.3 ? 'text-white' : ''}>
                             {new Date(order.timestamp).toLocaleTimeString('en-US', {
                                 hour12: false,
                                 hour: '2-digit',
                                 minute: '2-digit'
                             })}
                         </div>
-                        <div className="text-red-600 text-sm">
+                        <div className="text-red-500 text-sm">
                             {formatTimeDiff(order.timestamp)}
                         </div>
                     </div>
+                    <div className="flex flex-col h-full pb-12">
+                        {/* Order content */}
+                    </div>
                     <button
                         onClick={() => onComplete(order.id)}
-                        className="action-button absolute bottom-2 right-2"
+                        className="action-button absolute bottom-2 right-2 w-24"
                     >
                         Complete
                     </button>
