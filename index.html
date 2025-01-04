@@ -3,11 +3,13 @@
 <head>
     <title>Middle Street Coffee</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <script src="https://unpkg.com/react@17/umd/react.production.min.js"></script>
-    <script src="https://unpkg.com/react-dom@17/umd/react-dom.production.min.js"></script>
+    <!-- React and Babel are loaded from CDN for simplicity. In a larger app, we'd bundle these -->
+    <script src="https://unpkg.com/react@17.0.2/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@17.0.2/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/babel-standalone@6.26.0/babel.min.js"></script>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <style>
+        /* Force landscape orientation on iPad - this rotates the entire viewport */
         @media (orientation: portrait) {
             html {
                 transform: rotate(-90deg);
@@ -20,20 +22,24 @@
             }
         }
         
+        /* Base styles - enforce light mode for readability */
         body {
             background-color: #ffffff;
             color: #000000;
         }
         
+        /* Order card base styling */
         .order-card {
             border: 2px solid #000000;
-            margin-bottom: 1rem;
-            padding: 1rem;
+            margin-bottom: 0.5rem;
+            padding: 0.75rem;
             position: relative;
             overflow: hidden;
             background: transparent;
+            min-height: 120px; /* Ensure consistent minimum height */
         }
         
+        /* The brown overlay that appears as orders age */
         .brew-indicator {
             position: absolute;
             bottom: 0;
@@ -46,12 +52,27 @@
             pointer-events: none;
             z-index: -1;
         }
+
+        /* Green highlight for new orders */
+        .new-order-indicator {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #90EE90;
+            opacity: 0.1;
+            transition: opacity 0.5s ease;
+            pointer-events: none;
+            z-index: -1;
+        }
         
+        /* Darker brown for very old orders */
         .brew-indicator.dark {
             background-color: #2C1810;
         }
 
-        /* Add a white background behind the content but under the indicator */
+        /* White background beneath the brew indicator */
         .order-card::before {
             content: '';
             position: absolute;
@@ -62,22 +83,8 @@
             background-color: #ffffff;
             z-index: -2;
         }
-
-        .delayed-text {
-            transition: color 0.5s ease;
-        }
         
-        .delayed-text.warning {
-            color: #FF0000;
-        }
-        
-        @media (prefers-color-scheme: dark) {
-            body {
-                background-color: #ffffff;
-                color: #000000;
-            }
-        }
-        
+        /* E-ink display compatibility */
         @media (monochrome) {
             .brew-indicator {
                 background-color: #000000;
@@ -85,22 +92,36 @@
             }
         }
         
+        /* Header styling */
         .header-card {
             border: 2px solid #000000;
             margin-bottom: 1rem;
             padding: 0.75rem;
+            background-color: rgba(144, 238, 144, 0.1);
         }
         
-        button {
+        /* Common button styling */
+        .action-button {
             border: 2px solid #000000;
+            padding: 0.5rem 1rem;
+            font-size: 1.1rem;
+            min-width: 120px;
+            background: white;
+            transition: all 0.2s ease;
+        }
+
+        .action-button:hover {
+            background: #f0f0f0;
         }
         
+        /* Order number styling */
         .order-number {
-            font-size: 1.75rem;
+            font-size: 2.5rem;
             font-weight: 800;
             line-height: 1;
         }
         
+        /* Text hierarchy styles */
         .main-text {
             font-weight: 500;
             transition: color 0.5s ease;
@@ -113,6 +134,7 @@
             opacity: 0.8;
         }
         
+        /* Light text for dark backgrounds */
         .dark-background .main-text,
         .dark-background .secondary-text,
         .dark-background .order-number,
@@ -128,21 +150,45 @@
             border-color: #FFFFFF;
         }
 
-        .main-text.warning,
-        .secondary-text.warning {
+        /* Warning text styles */
+        .warning-text {
             color: #FF0000 !important;
         }
         
+        /* Version number styling */
         .version-text {
             font-size: 0.75rem;
             color: #666666;
         }
 
-        .compact-layout {
+        /* Grid layout - explicitly three columns */
+        .orders-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 0.75rem;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.5rem;
             align-items: start;
+        }
+
+        /* Order items styling */
+        .order-items {
+            margin-top: 0.25rem;
+        }
+
+        .order-item {
+            display: flex;
+            align-items: baseline;
+            margin-bottom: 0.25rem;
+            line-height: 1.2;
+        }
+
+        /* Last order info positioning */
+        .last-order-info {
+            position: absolute;
+            bottom: 0.75rem;
+            right: 0.75rem;
+            text-align: right;
+            font-size: 0.9rem;
+            color: #666;
         }
     </style>
 </head>
@@ -150,6 +196,7 @@
     <div id="root"></div>
 
     <script type="text/babel">
+        // Time formatting utility - used for "X minutes ago" display
         function formatTimeDiff(timestamp) {
             if (!timestamp) return '';
             const diff = Math.floor((new Date() - new Date(timestamp)) / 1000);
@@ -158,36 +205,34 @@
             return `${Math.floor(diff / 3600)} hours ago`;
         }
 
-        function StatusInfo({ lastOrderTime, lastUpdateTime, isLoading, totalOrders }) {
+        // Shows connection warning if haven't received updates in 60 seconds
+        function StatusInfo({ lastOrderTime, lastUpdateTime, isLoading }) {
             const timeSinceLastUpdate = lastUpdateTime ? 
                 Math.floor((new Date() - new Date(lastUpdateTime)) / 1000) : 0;
 
-            return (
-                <div>
-                    <div className="text-lg mb-2 main-text">
-                        <div>Last Order: {formatTimeDiff(lastOrderTime)}</div>
-                    </div>
-                    
-                    {timeSinceLastUpdate > 60 && (
-                        <div className="border-2 border-black px-3 py-2 mb-2">
-                            <div className="text-lg font-bold">⚠️ Connection Warning</div>
-                            <div className="text-base">
-                                Last Update: {formatTimeDiff(lastUpdateTime)}
-                            </div>
+            if (timeSinceLastUpdate > 60) {
+                return (
+                    <div className="border-2 border-black px-3 py-2 mb-2">
+                        <div className="text-lg font-bold">⚠️ Connection Warning</div>
+                        <div className="text-base">
+                            Last Update: {formatTimeDiff(lastUpdateTime)}
                         </div>
-                    )}
-                </div>
-            );
+                    </div>
+                );
+            }
+            return null;
         }
 
+        // Main header component - shows store name, time, and action buttons
         function Header({ onReset, onClearAll, onUndo, hasCompletedOrders, hasActiveOrders, activeOrderCount, totalOrderCount, canUndo }) {
             const [time, setTime] = React.useState(new Date());
-            const version = "2.6";
+            const version = "2.6"; // Version number for tracking deployments
 
+            // Update clock every 5 seconds
             React.useEffect(() => {
                 const timer = setInterval(() => {
                     setTime(new Date());
-                }, 60000);
+                }, 5000);
                 return () => clearInterval(timer);
             }, []);
 
@@ -222,17 +267,17 @@
                     
                     <div className="flex gap-2 mt-2">
                         {canUndo && (
-                            <button onClick={onUndo} className="px-4 py-2 text-base bg-white">
+                            <button onClick={onUndo} className="action-button">
                                 Undo Last
                             </button>
                         )}
                         {hasCompletedOrders && (
-                            <button onClick={onReset} className="px-4 py-2 text-base bg-white">
+                            <button onClick={onReset} className="action-button">
                                 Reset Completed
                             </button>
                         )}
                         {hasActiveOrders && (
-                            <button onClick={onClearAll} className="px-4 py-2 text-base bg-white">
+                            <button onClick={onClearAll} className="action-button">
                                 Clear All
                             </button>
                         )}
@@ -241,44 +286,54 @@
             );
         }
 
-        function Order({ order, orderNumber, onComplete, onUndo, isLastCompleted }) {
+        // Individual order card component
+        function Order({ order, orderNumber, onComplete }) {
+            // Track the visual state of the order (new, aging, old)
             const [orderState, setOrderState] = React.useState({
                 opacity: 0,
                 isDark: false,
-                isDelayed: false
+                isDelayed: false,
+                isNew: true
             });
             
+            // Calculate and update the aging visual effects
             React.useEffect(() => {
                 const calculateAging = () => {
                     const orderTime = new Date(order.timestamp).getTime();
                     const now = new Date().getTime();
                     const diffMinutes = (now - orderTime) / (1000 * 60);
                     
-                    {/* After 10 minutes, full black */}
+                    // Green highlight for first 2 minutes
+                    const isNew = diffMinutes < 2;
+                    
+                    // Full dark after 10 minutes
                     if (diffMinutes >= 10) {
-                        return { opacity: 1, isDark: true, isDelayed: true };
+                        return { opacity: 1, isDark: true, isDelayed: true, isNew };
                     }
                     
-                    {/* Between 5 and 10 minutes, transition from brown to black */}
+                    // Transition to dark between 5-10 minutes
                     if (diffMinutes >= 5) {
-                        const blackness = (diffMinutes - 5) / 5; // 0 to 1
+                        const blackness = (diffMinutes - 5) / 5;
                         return {
                             opacity: 0.7 + (blackness * 0.3),
                             isDark: blackness > 0.5,
-                            isDelayed: true
+                            isDelayed: true,
+                            isNew
                         };
                     }
                     
-                    {/* Up to 5 minutes, brown color */}
+                    // Light brown up to 5 minutes
                     return {
                         opacity: Math.min(diffMinutes / 5, 0.7),
                         isDark: false,
-                        isDelayed: false
+                        isDelayed: false,
+                        isNew
                     };
                 };
                 
                 setOrderState(calculateAging());
                 
+                // Update aging effects every 5 seconds
                 const interval = setInterval(() => {
                     setOrderState(calculateAging());
                 }, 5000);
@@ -292,59 +347,62 @@
                         className={`brew-indicator ${orderState.isDark ? 'dark' : ''}`}
                         style={{ opacity: orderState.opacity }}
                     />
-                    <div className="flex justify-between items-start">
-                        <div className="order-number">
-                            No. {orderNumber}
+                    {orderState.isNew && <div className="new-order-indicator" />}
+                    
+                    <div className="flex flex-col h-full">
+                        <div className="flex justify-between items-start">
+                            <div className="order-number">
+                                No. {orderNumber}
+                            </div>
+                            <button
+                                onClick={() => onComplete(order.id)}
+                                className="action-button"
+                            >
+                                Complete
+                            </button>
                         </div>
-                        <button
-                            onClick={() => onComplete(order.id)}
-                            className="px-3 py-1 text-base"
-                        >
-                            Complete
-                        </button>
+
+                        <div className="order-items mt-2">
+                            {order.items.map((item, index) => (
+                                <div key={index} className="order-item">
+                                    <span className="font-bold mr-2 text-lg min-w-[2rem]">
+                                        {item.quantity}x
+                                    </span>
+                                    <div className="main-text flex-1">
+                                        <span className="text-lg">{item.name}</span>
+                                        {item.variant && (
+                                            <span className="secondary-text">
+                                                {' - '}
+                                                {item.variant}
+                                            </span>
+                                        )}
+                                        {item.comment && (
+                                            <div className="secondary-text">
+                                                {item.comment}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
                     </div>
 
-                    <div className="text-right mt-1">
-                        <div className={`text-base font-medium ${orderState.isDelayed ? 'delayed-text warning' : ''}`}>
+                    <div className="absolute top-3 right-3">
+                        <div className={`text-base font-medium ${orderState.isDelayed ? 'warning-text' : ''}`}>
                             {new Date(order.timestamp).toLocaleTimeString('en-US', {
                                 hour12: false,
                                 hour: '2-digit',
                                 minute: '2-digit'
                             })}
                         </div>
-                        <div className={`text-sm ${orderState.isDelayed ? 'delayed-text warning' : 'secondary-text'}`}>
-                            {formatTimeDiff(order.timestamp)}
-                        </div>
                     </div>
-
-                    <ul className="mt-2 space-y-2">
-                        {order.items.map((item, index) => (
-                            <li key={index} className="text-base flex items-baseline">
-                                <span className="font-bold mr-2 text-lg min-w-[2rem]">
-                                    {item.quantity}x
-                                </span>
-                                <div className="main-text flex-1">
-                                    <span className="text-lg">{item.name}</span>
-                                    {item.variant && (
-                                        <span className="secondary-text text-base">
-                                            {' - '}
-                                            {item.variant}
-                                        </span>
-                                    )}
-                                    {item.comment && (
-                                        <div className="secondary-text text-sm">
-                                            {item.comment}
-                                        </div>
-                                    )}
-                                </div>
-                            </li>
-                        ))}
-                    </ul>
                 </div>
             );
         }
 
+        // Main application component
         function OrdersDisplay() {
+            // Application state
             const [orders, setOrders] = React.useState([]);
             const [completedOrders, setCompletedOrders] = React.useState(() => {
                 const saved = localStorage.getItem('completedOrders');
@@ -354,15 +412,17 @@
             const [error, setError] = React.useState(null);
             const [loading, setLoading] = React.useState(false);
             const [lastUpdateTime, setLastUpdateTime] = React.useState(null);
+            
+            // Audio context for new order notifications
             const audioContextRef = React.useRef(null);
             const previousOrderIdsRef = React.useRef(new Set());
 
+            // Play a beep sound for new orders
             const playNotificationSound = () => {
                 try {
                     if (!audioContextRef.current) {
                         audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
                     }
-                    
                     const context = audioContextRef.current;
                     const oscillator = context.createOscillator();
                     const gainNode = context.createGain();
@@ -370,19 +430,21 @@
                     oscillator.connect(gainNode);
                     gainNode.connect(context.destination);
                     
+                    // Configure sound parameters
                     oscillator.type = 'sine';
                     oscillator.frequency.setValueAtTime(440, context.currentTime);
-                    gainNode.gain.setValueAtTime(1.0, context.currentTime);
+                    gainNode.gain.setValueAtTime(0.5, context.currentTime);
                     
+                    // Play sound for 200ms
                     oscillator.start(context.currentTime);
-                    oscillator.stop(context.currentTime + 0.3);
-                    
-                    gainNode.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 0.3);
+                    oscillator.stop(context.currentTime + 0.2);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 0.2);
                 } catch (error) {
                     console.error('Error playing notification:', error);
                 }
             };
 
+            // Filter and sort today's active orders
             const activeOrders = React.useMemo(() => {
                 const today = new Date().toDateString();
                 return orders
@@ -393,6 +455,7 @@
                     .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
             }, [orders]);
 
+            // Trigger notification sound when new orders arrive
             React.useEffect(() => {
                 const currentOrderIds = new Set(activeOrders.map(order => order.id));
                 const hasNewOrders = activeOrders.some(order => !previousOrderIdsRef.current.has(order.id));
@@ -404,10 +467,12 @@
                 previousOrderIdsRef.current = currentOrderIds;
             }, [activeOrders]);
 
+            // Persist completed orders to localStorage
             React.useEffect(() => {
                 localStorage.setItem('completedOrders', JSON.stringify([...completedOrders]));
             }, [completedOrders]);
 
+            // Reset completed orders list
             const resetCompletedOrders = () => {
                 if (window.confirm('Are you sure you want to reset all completed orders?')) {
                     setCompletedOrders(new Set());
@@ -416,6 +481,7 @@
                 }
             };
 
+            // Mark all current orders as complete
             const clearAllOrders = () => {
                 if (window.confirm('Are you sure you want to mark all current orders as complete?')) {
                     const newCompletedOrders = new Set(completedOrders);
@@ -426,6 +492,7 @@
                 }
             };
 
+            // Fetch orders from API
             const fetchOrders = async () => {
                 if (loading) return;
                 setLoading(true);
@@ -446,12 +513,14 @@
                 setLoading(false);
             };
 
+            // Set up periodic order fetching
             React.useEffect(() => {
                 fetchOrders();
                 const interval = setInterval(fetchOrders, 5000);
                 return () => clearInterval(interval);
             }, []);
 
+            // Mark an order as complete
             const toggleOrderComplete = async (orderId) => {
                 try {
                     const response = await fetch('/.netlify/functions/mark-complete', {
@@ -479,6 +548,7 @@
                 }
             };
 
+            // Undo last completed order
             const handleUndo = React.useCallback(() => {
                 if (lastCompletedOrder) {
                     setCompletedOrders(prev => {
@@ -490,11 +560,13 @@
                 }
             }, [lastCompletedOrder]);
 
+            // Get timestamp of most recent order
             const lastOrderTime = React.useMemo(() => {
                 if (activeOrders.length === 0) return null;
                 return activeOrders[0].timestamp;
             }, [activeOrders]);
 
+            // Generate sequential order numbers for the day
             const getDailyOrderNumber = (orders, targetId) => {
                 const today = new Date().toDateString();
                 let counter = 1;
@@ -515,8 +587,10 @@
                 return null;
             };
 
+            // Filter out completed orders
             const visibleOrders = activeOrders.filter(order => !completedOrders.has(order.id));
 
+            // Check if there are any completed orders today
             const hasCompletedOrders = React.useMemo(() => {
                 const today = new Date().toDateString();
                 return orders.some(order => {
@@ -525,6 +599,7 @@
                 });
             }, [orders, completedOrders]);
 
+            // Count total orders for the day
             const totalOrderCount = React.useMemo(() => {
                 const today = new Date().toDateString();
                 return orders.filter(order => {
@@ -534,7 +609,7 @@
             }, [orders]);
 
             return (
-                <div className="p-4 max-w-6xl mx-auto">
+                <div className="p-4 max-w-6xl mx-auto relative">
                     <Header
                         onReset={resetCompletedOrders}
                         onClearAll={clearAllOrders}
@@ -558,7 +633,7 @@
                         </div>
                     )}
 
-                    <div className="compact-layout">
+                    <div className="orders-grid">
                         {visibleOrders.map(order => (
                             <Order
                                 key={order.id}
@@ -570,10 +645,15 @@
                             />
                         ))}
                     </div>
+
+                    <div className="last-order-info">
+                        Last Order: {formatTimeDiff(lastOrderTime)}
+                    </div>
                 </div>
             );
         }
 
+        // Initialize the application
         ReactDOM.render(<OrdersDisplay />, document.getElementById('root'));
     </script>
 </body>
