@@ -372,10 +372,7 @@
                         </div>
                     </div>
 
-                    <button
-                        onClick={() => onComplete(order.id)}
-                        className="action-button absolute top-2 right-2"
-                    >
+                    <div className="absolute top-2 right-2 text-right">
                         <div>
                             {new Date(order.timestamp).toLocaleTimeString('en-US', {
                                 hour12: false,
@@ -386,6 +383,11 @@
                         <div className="text-red-600 text-sm">
                             {formatTimeDiff(order.timestamp)}
                         </div>
+                    </div>
+                    <button
+                        onClick={() => onComplete(order.id)}
+                        className="action-button absolute bottom-2 right-2"
+                    >
                         Complete
                     </button>
                 </div>
