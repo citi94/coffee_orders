@@ -236,17 +236,15 @@
                 <div className="header-card">
                     <div className="flex justify-between items-start">
                         <div className="flex-1">
-                            <div className="flex items-baseline">
+                            <div className="flex items-center">
                                 <h1 className="text-3xl font-bold mr-2">Middle Street Coffee</h1>
                                 <div className="version-text">v{version}</div>
                             </div>
-                            <div className="flex items-center gap-4 mt-1">
+                            <div className="flex items-baseline gap-2">
                                 <div className="text-lg font-medium">{dayName}</div>
                                 <div className="text-lg font-medium">Total Orders: {totalOrderCount}</div>
-                                <div className="text-lg font-medium">{activeOrderCount} Active</div>
-                            </div>
-                            <div className="text-sm text-gray-600 mt-1">
-                                Last Order: {formatTimeDiff(lastOrderTime)}
+                                <div className="text-lg font-medium">Active Orders: {activeOrderCount}</div>
+                                <div className="text-base text-gray-600">Last Order: {formatTimeDiff(lastOrderTime)}</div>
                             </div>
                         </div>
                         <div className="text-right">
@@ -379,13 +377,18 @@
                         </div>
                     </div>
 
-                    <div className="absolute top-3 right-3">
-                        <div className={`text-base font-medium ${orderState.isDelayed ? 'warning-text' : ''}`}>
-                            {new Date(order.timestamp).toLocaleTimeString('en-US', {
-                                hour12: false,
-                                hour: '2-digit',
-                                minute: '2-digit'
-                            })}
+                    <div className="absolute top-0 right-0 p-2">
+                        <div className={`text-base ${orderState.isDelayed ? 'warning-text' : ''}`}>
+                            <div>
+                                {new Date(order.timestamp).toLocaleTimeString('en-US', {
+                                    hour12: false,
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                })}
+                            </div>
+                            <div className="text-right text-sm text-red-600">
+                                {formatTimeDiff(order.timestamp)}
+                            </div>
                         </div>
                     </div>
                 </div>
