@@ -164,12 +164,12 @@
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
             gap: 1rem;
-            align-items: start;
+            align-items: stretch;
         }
 
         /* Order items */
         .order-items {
-            margin-top: 0.25rem;
+            flex: 1;
         }
 
         .order-item {
@@ -189,10 +189,21 @@
         .order-box {
             display: flex;
             flex-direction: column;
-            min-height: 200px;
-            height: 100%;
             border: 2px solid #000;
             padding: 1rem;
+            height: 100%;
+            min-height: 200px;
+            background-color: var(--bg-color);
+        }
+
+        .order-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .order-actions {
+            margin-top: auto;
         }
 
         /* Row Height Matching */
@@ -247,7 +258,7 @@
        function Header({ onReset, onClearAll, onUndo, hasCompletedOrders, hasActiveOrders, 
                  activeOrderCount, totalOrderCount, canUndo, lastOrderTime }) {
   const [time, setTime] = React.useState(new Date());
-  const version = "3.2.2";
+  const version = "3.2.3";
 
   React.useEffect(() => {
     const timer = setInterval(() => {
