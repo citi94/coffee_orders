@@ -218,68 +218,68 @@
         }
 
         // Header component
-        function Header({ onReset, onClearAll, onUndo, hasCompletedOrders, hasActiveOrders, 
-                         activeOrderCount, totalOrderCount, canUndo, lastOrderTime }) {
-            const [time, setTime] = React.useState(new Date());
-            const version = "3.1";
+       function Header({ onReset, onClearAll, onUndo, hasCompletedOrders, hasActiveOrders, 
+                 activeOrderCount, totalOrderCount, canUndo, lastOrderTime }) {
+  const [time, setTime] = React.useState(new Date());
+  const version = "3.1";
 
-            React.useEffect(() => {
-                const timer = setInterval(() => {
-                    setTime(new Date());
-                }, 5000);
-                return () => clearInterval(timer);
-            }, []);
+  React.useEffect(() => {
+    const timer = setInterval(() => {
+      setTime(new Date());
+    }, 5000);
+    return () => clearInterval(timer);
+  }, []);
 
-            const dayName = time.toLocaleDateString('en-US', { weekday: 'long' });
+  const formattedTime = time.toLocaleTimeString('en-US', {
+    hour12: false,
+    hour: '2-digit',
+    minute: '2-digit'
+  });
 
-            return (
-                <div className="header-card">
-                    <div className="flex justify-between items-start">
-                        <div className="flex-1">
-                            <div className="flex items-baseline">
-                                <h1 className="text-3xl font-bold mr-2">Middle Street Coffee</h1>
-                                <div className="version-text">v{version}</div>
-                            </div>
-                            <div className="flex items-baseline gap-4">
-                                <div className="text-lg font-medium">{dayName}</div>
-                                <div className="text-lg font-medium">Total Orders: {totalOrderCount}</div>
-                                <div className="text-lg font-medium">Active: {activeOrderCount}</div>
-                                <div className="text-base text-gray-600">
-                                    Last Order: {formatTimeDiff(lastOrderTime)}
-                                </div>
-                            </div>
-                        </div>
-                        <div className="text-right">
-                            <div className="text-2xl font-bold">
-                                {time.toLocaleTimeString('en-US', {
-                                    hour12: false,
-                                    hour: '2-digit',
-                                    minute: '2-digit'
-                                })}
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div className="flex gap-2 mt-2">
-                        {canUndo && (
-                            <button onClick={onUndo} className="action-button">
-                                Undo Last
-                            </button>
-                        )}
-                        {hasCompletedOrders && (
-                            <button onClick={onReset} className="action-button">
-                                Reset Completed
-                            </button>
-                        )}
-                        {hasActiveOrders && (
-                            <button onClick={onClearAll} className="action-button">
-                                Clear All
-                            </button>
-                        )}
-                    </div>
-                </div>
-            );
-        }
+  const dayName = time.toLocaleDateString('en-US', { weekday: 'long' });
+
+  return (
+    <div className="header-card">
+      <div className="flex justify-between items-start">
+        <div className="flex-1">
+          <div className="flex items-baseline">
+            <h1 className="text-3xl font-bold mr-2">Middle Street Coffee</h1>
+            <div className="version-text">v{version}</div>
+          </div>
+          <div className="flex items-baseline gap-4">
+            <div className="text-lg font-medium">{dayName}</div>
+            <div className="text-lg font-medium">Total Orders: {totalOrderCount}</div>
+            <div className="text-lg font-medium">Active: {activeOrderCount}</div>
+            <div className="text-base text-gray-600">
+              Last Order: {formatTimeDiff(lastOrderTime)}
+            </div>
+          </div>
+        </div>
+        <div className="text-right">
+          <div className="text-2xl font-bold">{formattedTime}</div>
+        </div>
+      </div>
+    
+      <div className="flex gap-2 mt-2">
+        {canUndo && (
+          <button onClick={onUndo} className="action-button">
+            Undo Last
+          </button>
+        )}
+        {hasCompletedOrders && (
+          <button onClick={onReset} className="action-button">
+            Reset Completed
+          </button>
+        )}
+        {hasActiveOrders && (
+          <button onClick={onClearAll} className="action-button">
+            Clear All
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
 
         // Order component
         function Order({ order, orderNumber, onComplete }) {
