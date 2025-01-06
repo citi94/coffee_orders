@@ -2,7 +2,7 @@ const fetch = require('node-fetch');
 
 exports.handler = async function (event, context) {
   try {
-    console.log('Starting API exploration');
+    console.log('Starting focused API exploration');
     
     // Get access token
     const tokenResponse = await fetch('https://oauth.zettle.com/token', {
@@ -19,124 +19,67 @@ exports.handler = async function (event, context) {
 
     const { access_token } = await tokenResponse.json();
     
-    // List of base URLs to try
-    const baseUrls = [
-      'https://purchase.izettle.com',
-      'https://products.izettle.com',
-      'https://image.izettle.com',
-      'https://finance.izettle.com'
+    // Just try the most likely endpoints for orders/tables
+    const endpointsToTry = [
+      'https://purchase.izettle.com/v2/purchases',
+      'https://purchase.izettle.com/purchases/v2',  // This is the one we know works
+      'https://purchase.izettle.com/v3/orders',
+      'https://purchase.izettle.com/orders/v3',
+      'https://purchase.izettle.com/v1/tables',
+      'https://purchase.izettle.com/tables/v1',
+      // Try some alternative base URLs
+      'https://order.izettle.com/v3/orders',
+      'https://tables.izettle.com/v1/tables'
     ];
+
+    const results = [];
     
-    // List of potential API versions
-    const versions = ['v1', 'v2', 'v3'];
-    
-    // List of potential endpoints
-    const endpoints = [
-      'purchases',
-      'orders',
-      'tables',
-      'products',
-      'inventory',
-      'transactions',
-      'finance'
-    ];
-
-    const results = {
-      discovered: [],
-      errors: []
-    };
-
-    // Try OPTIONS request on each combination
-    for (const baseUrl of baseUrls) {
-      for (const version of versions) {
-        for (const endpoint of endpoints) {
-          const url = `${baseUrl}/${endpoint}`;
-          const versionedUrl = `${baseUrl}/${version}/${endpoint}`;
-          
-          try {
-            // Try base endpoint
-            const response = await fetch(url, {
-              method: 'GET',
-              headers: {
-                'Authorization': `Bearer ${access_token}`
-              }
-            });
-            
-            console.log(`Testing ${url}:`, {
-              status: response.status,
-              statusText: response.statusText
-            });
-
-            if (response.status !== 404) {
-              results.discovered.push({
-                url,
-                status: response.status,
-                statusText: response.statusText
-              });
-            }
-
-            // Try versioned endpoint
-            const versionedResponse = await fetch(versionedUrl, {
-              method: 'GET',
-              headers: {
-                'Authorization': `Bearer ${access_token}`
-              }
-            });
-            
-            console.log(`Testing ${versionedUrl}:`, {
-              status: versionedResponse.status,
-              statusText: versionedResponse.statusText
-            });
-
-            if (versionedResponse.status !== 404) {
-              results.discovered.push({
-                url: versionedUrl,
-                status: versionedResponse.status,
-                statusText: versionedResponse.statusText
-              });
-            }
-
-          } catch (error) {
-            results.errors.push({
-              url,
-              error: error.message
-            });
-          }
-        }
-      }
-    }
-
-    // Also try to discover any API documentation endpoints
-    const docEndpoints = [
-      'https://purchase.izettle.com/swagger',
-      'https://purchase.izettle.com/docs',
-      'https://purchase.izettle.com/api-docs',
-      'https://developer.izettle.com/api'
-    ];
-
-    for (const docUrl of docEndpoints) {
+    // Try each endpoint
+    for (const url of endpointsToTry) {
       try {
-        const response = await fetch(docUrl, {
+        const startOfDay = new Date();
+        startOfDay.setHours(0, 0, 0, 0);
+        
+        const fullUrl = url.includes('purchases') ? 
+          `${url}?startDate=${startOfDay.toISOString()}` : url;
+        
+        const response = await fetch(fullUrl, {
           headers: {
-            'Authorization': `Bearer ${access_token}`
+            'Authorization': `Bearer ${access_token}`,
+            'Accept': 'application/json'
           }
         });
         
-        console.log(`Testing doc endpoint ${docUrl}:`, {
+        let responseBody;
+        try {
+          responseBody = await response.text();
+          // Try to parse as JSON if possible
+          try {
+            responseBody = JSON.parse(responseBody);
+          } catch (e) {
+            // Leave as text if not JSON
+          }
+        } catch (e) {
+          responseBody = 'Could not read response body';
+        }
+        
+        console.log(`Testing ${url}:`, {
           status: response.status,
-          statusText: response.statusText
+          statusText: response.statusText,
+          headers: Object.fromEntries(response.headers),
+          body: responseBody
         });
 
-        if (response.status !== 404) {
-          results.discovered.push({
-            url: docUrl,
-            status: response.status,
-            statusText: response.statusText
-          });
-        }
+        results.push({
+          url,
+          status: response.status,
+          statusText: response.statusText,
+          body: responseBody
+        });
       } catch (error) {
-        results.errors.push({
-          url: docUrl,
+        console.log(`Error testing ${url}:`, error.message);
+        results.push({
+          url,
           error: error.message
         });
       }
