@@ -285,7 +285,7 @@
         }
 
         // Header component
-        function Header({ onReset, onClearAll, onUndo, hasCompletedOrders, hasActiveOrders, 
+       function Header({ onReset, onClearAll, onUndo, hasCompletedOrders, hasActiveOrders, 
                  activeOrderCount, totalOrderCount, canUndo, lastOrderTime }) {
   const [time, setTime] = React.useState(new Date());
   const version = "2.3.6";
@@ -326,8 +326,8 @@
           <div className="text-2xl font-bold">{formattedTime}</div>
         </div>
       </div>
-    
-      <div className="flex gap-2 mt-1">
+    
+      <div className="flex gap-2 mt-2">
         {canUndo && (
           <button onClick={onUndo} className="action-button">
             Undo Last
@@ -348,140 +348,134 @@
   );
 }
 
-            // Order component
-            function Order({ order, orderNumber, onComplete }) {
-                const [orderState, setOrderState] = React.useState({
-                    opacity: 0,
-                    isDark: false,
-                    isDelayed: false,
-                    isNew: true
-                });
-                
-                React.useEffect(() => {
-                    const calculateAging = () => {
-                        const orderTime = new Date(order.timestamp).getTime();
-                        const now = new Date().getTime();
-                        const diffMinutes = (now - orderTime) / (1000 * 60);
-                        
-                        // Green highlight for first 2 minutes
-                        const isNew = diffMinutes < 2;
-                        
-                        // Full dark after 10 minutes
-                        if (diffMinutes >= 10) {
-                            return { 
-                                opacity: 1, 
-                                isDark: true, 
-                                isDelayed: true,  // This triggers red timestamp
-                                isNew 
-                            };
-                        }
-                        
-                        // Dark brown between 5-10 minutes
-                        if (diffMinutes >= 5) {
-                            const darkening = (diffMinutes - 5) / 5; // Goes from 0 to 1 over 5 minutes
-                            return {
-                                opacity: 0.7 + (darkening * 0.3),  // Goes from 0.7 to 1.0
-                                isDark: darkening > 0.5,           // Switches to dark theme halfway through
-                                isDelayed: diffMinutes >= 10,      // Only red timestamp after 10 mins
-                                isNew
-                            };
-                        }
-                        
-                        // Light brown up to 5 minutes
+        // Order component
+        function Order({ order, orderNumber, onComplete }) {
+            const [orderState, setOrderState] = React.useState({
+                opacity: 0,
+                isDark: false,
+                isDelayed: false,
+                isNew: true
+            });
+            
+            React.useEffect(() => {
+                const calculateAging = () => {
+                    const orderTime = new Date(order.timestamp).getTime();
+                    const now = new Date().getTime();
+                    const diffMinutes = (now - orderTime) / (1000 * 60);
+                    
+                    // Green highlight for first 2 minutes
+                    const isNew = diffMinutes < 2;
+                    
+                    // Full dark after 10 minutes
+                    if (diffMinutes >= 10) {
+                        return { 
+                            opacity: 1, 
+                            isDark: true, 
+                            isDelayed: true,  // This triggers red timestamp
+                            isNew 
+                        };
+                    }
+                    
+                    // Dark brown between 5-10 minutes
+                    if (diffMinutes >= 5) {
+                        const darkening = (diffMinutes - 5) / 5; // Goes from 0 to 1 over 5 minutes
                         return {
-                            opacity: Math.min(diffMinutes / 5, 0.7),  // Goes from 0 to 0.7 over 5 minutes
-                            isDark: false,
-                            isDelayed: false,
+                            opacity: 0.7 + (darkening * 0.3),  // Goes from 0.7 to 1.0
+                            isDark: darkening > 0.5,           // Switches to dark theme halfway through
+                            isDelayed: diffMinutes >= 10,      // Only red timestamp after 10 mins
                             isNew
                         };
+                    }
+                    
+                    // Light brown up to 5 minutes
+                    return {
+                        opacity: Math.min(diffMinutes / 5, 0.7),  // Goes from 0 to 0.7 over 5 minutes
+                        isDark: false,
+                        isDelayed: false,
+                        isNew
                     };
-                    
+                };
+
+                // Return values explained:
+                // opacity: Controls the brown overlay (0 = none, 1 = full)
+                // isDark: Controls if we use dark theme text (white instead of black)
+                // isDelayed: Controls if timestamp shows in red
+                // isNew: Controls the green highlight for new orders
+                
+                setOrderState(calculateAging());
+                
+                const interval = setInterval(() => {
                     setOrderState(calculateAging());
-                    
-                    const interval = setInterval(() => {
-                        setOrderState(calculateAging());
-                    }, 5000);
-                    
-                    return () => clearInterval(interval);
-                }, [order.timestamp]);
+                }, 5000);
+                
+                return () => clearInterval(interval);
+            }, [order.timestamp]);
 
-                return (
-                    <div className={`order-card ${orderState.opacity > 0.42 ? 'dark-background' : ''}`}>
-                        <div 
-                            className={`brew-indicator ${orderState.isDark ? 'dark' : ''}`}
-                            style={{ opacity: orderState.opacity }}
-                        />
-                        {orderState.isNew && <div className="new-order-indicator" />}
-                        
-                        <div className="flex flex-col h-full">
-                            <div className="flex justify-between items-start mb-2">
-                                <div className="flex items-center gap-3">
-                                    <div className="order-number">
-                                        No. {orderNumber}
-                                    </div>
-                                    {order.type === 'open_order' && order.tableNumber && (
-                                        <div className="text-lg font-semibold">
-                                            Table {order.tableNumber}
-                                        </div>
-                                    )}
-                                    {order.type === 'open_order' && (
-                                        <div className="text-sm font-medium px-2 py-1 bg-yellow-100 rounded border border-yellow-400">
-                                            Open Tab
-                                        </div>
-                                    )}
-                                </div>
-                                <button
-                                    onClick={() => onComplete(order.id)}
-                                    className="action-button"
-                                >
-                                    Complete
-                                </button>
+            return (
+                <div className={`order-card ${orderState.opacity > 0.42 ? 'dark-background' : ''}`}>
+                    <div 
+                        className={`brew-indicator ${orderState.isDark ? 'dark' : ''}`}
+                        style={{ opacity: orderState.opacity }}
+                    />
+                    {orderState.isNew && <div className="new-order-indicator" />}
+                    
+                    <div className="flex flex-col h-full">
+                        <div className="flex justify-between items-start">
+                            <div className="order-number">
+                                No. {orderNumber}
                             </div>
-
-                            <div className="order-items">
-                                {order.items.map((item, index) => (
-                                    <div key={index} className="order-item">
-                                        <span className="font-bold mr-2 text-lg min-w-[2rem]">
-                                            {item.quantity}x
-                                        </span>
-                                        <div className="main-text flex-1">
-                                            <span className="text-lg">{item.name}</span>
-                                            {item.variant && (
-                                                <span className="secondary-text">
-                                                    {' - '}
-                                                    {item.variant}
-                                                </span>
-                                            )}
-                                            {item.comment && (
-                                                <div className="secondary-text">
-                                                    {item.comment}
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
+                            <button
+                                onClick={() => onComplete(order.id)}
+                                className="action-button"
+                            >
+                                Complete
+                            </button>
                         </div>
 
-                        <div className="absolute bottom-3 right-3 text-right">
-                            <div className={`main-text text-lg font-semibold whitespace-nowrap ${
-                                orderState.isDelayed ? 'warning-text' : ''
-                            }`}>
-                                {new Date(order.timestamp).toLocaleTimeString('en-US', {
-                                    hour12: false,
-                                    hour: '2-digit',
-                                    minute: '2-digit'
-                                })}
-                            </div>
-                            <div className={`secondary-text whitespace-nowrap ${
-                                orderState.isDelayed ? 'warning-text' : ''
-                            }`}>
-                                {formatTimeDiff(order.timestamp)}
-                            </div>
+                        <div className="order-items mt-2 pr-24"> {/* Added right padding */}
+                            {order.items.map((item, index) => (
+                                <div key={index} className="order-item">
+                                    <span className="font-bold mr-2 text-lg min-w-[2rem] shrink-0">
+                                        {item.quantity}x
+                                    </span>
+                                    <div className="main-text flex-1 min-w-0"> {/* Added min-w-0 for proper text wrapping */}
+                                        <span className="text-lg break-words">{item.name}</span>
+                                        {item.variant && (
+                                            <span className="secondary-text break-words">
+                                                {' - '}
+                                                {item.variant}
+                                            </span>
+                                        )}
+                                        {item.comment && (
+                                            <div className="secondary-text break-words">
+                                                {item.comment}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
                         </div>
                     </div>
-                );
-            }
+
+                    <div className="absolute bottom-3 right-3 text-right">
+                        <div className={`main-text text-lg font-semibold whitespace-nowrap ${
+                            orderState.isDelayed ? 'warning-text' : ''
+                        }`}>
+                            {new Date(order.timestamp).toLocaleTimeString('en-US', {
+                                hour12: false,
+                                hour: '2-digit',
+                                minute: '2-digit'
+                            })}
+                        </div>
+                        <div className={`secondary-text whitespace-nowrap ${
+                            orderState.isDelayed ? 'warning-text' : ''
+                        }`}>
+                            {formatTimeDiff(order.timestamp)}
+                        </div>
+                    </div>
+                    </div>
+            );
+        }
 
         // Main application component
         function OrdersDisplay() {
