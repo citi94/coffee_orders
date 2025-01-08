@@ -542,21 +542,17 @@
             }, [completedOrders]);
 
             const resetCompletedOrders = () => {
-                if (window.confirm('Are you sure you want to reset all completed orders?')) {
-                    setCompletedOrders(new Set());
-                    setLastCompletedOrder(null);
-                    localStorage.removeItem('completedOrders');
-                }
+                  setCompletedOrders(new Set());
+                  setLastCompletedOrder(null);
+                  localStorage.removeItem('completedOrders');
             };
 
             const clearAllOrders = () => {
-                if (window.confirm('Are you sure you want to mark all current orders as complete?')) {
-                    const newCompletedOrders = new Set(completedOrders);
-                    activeOrders.forEach(order => {
-                        newCompletedOrders.add(order.id);
-                    });
-                    setCompletedOrders(newCompletedOrders);
-                }
+              const newCompletedOrders = new Set(completedOrders);
+               activeOrders.forEach(order => {
+              newCompletedOrders.add(order.id);
+                 });
+                setCompletedOrders(newCompletedOrders);
             };
 
             const fetchOrders = async () => {
