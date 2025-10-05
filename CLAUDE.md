@@ -69,19 +69,42 @@ Required in Netlify environment:
 ### Key Implementation Details
 
 **Order Filtering Logic**:
-- `activeOrders` (line 506-514 in index.html): Filters all orders to only today's orders
-- `visibleOrders` (line 634): Further filters to exclude completed orders
-- Order completion is client-side only via localStorage
+- `activeOrders`: Filters all orders to only today's orders using useMemo
+- `visibleOrders`: Further filters to exclude completed orders
+- Order completion is client-side only via localStorage (persists across reloads)
+- Daily order numbering pre-calculated with useMemo for O(n) performance
 
 **Timestamp Handling**:
 - All order times are in ISO format from Zettle API
+- Server-side respects SHOP_TIMEZONE (configurable in get-orders.js, default: America/New_York)
 - Display shows 24-hour time format (HH:MM)
 - Aging calculations compare current time to order timestamp every 5 seconds
+
+**Audio System**:
+- Requires user interaction (browser autoplay policy)
+- AudioContext initialized on "Enable Sound" button click
+- Three-tone notification: E5 (659.25Hz) → G5 (783.99Hz) → C6 (1046.50Hz)
+- Square wave oscillator for maximum volume
+- Gain levels: 0.9-1.0 (near maximum)
+- Automatically closes AudioContext on component unmount
+
+**Debug Mode**:
+- Activated by holding version number for 2 seconds or Ctrl+Shift+D
+- Tracks all API calls with response times and error history
+- Shows live order statistics and system state
+- Can simulate orders for testing without affecting production data
+- Export functionality creates timestamped JSON debug dump
 
 **Grid Layout**:
 - Responsive grid with auto-fill columns (minmax 280px, 1fr)
 - Mobile: Single column layout
 - Desktop: Multi-column grid with equal-height cards
+
+**Error Handling**:
+- All API calls wrapped in try-catch with proper error logging
+- Failed requests tracked in debug stats
+- User-friendly error messages displayed in UI
+- Technical errors logged to console for debugging
 
 ## Deployment
 
@@ -95,11 +118,46 @@ netlify deploy --prod
 The build command is `npm install` and functions are in `netlify/functions`.
 
 ## Version History
-Current version: 2.4.0 (displayed in header)
+Current version: 2.5.0 (displayed in header)
 
-### Recent Updates (v2.4.0)
+### Recent Updates (v2.5.0 - Production Hardening)
+**Critical Bug Fixes:**
+- Fixed OAuth/API error handling with comprehensive status checks and validation
+- Fixed race condition in polling mechanism using loadingRef to prevent simultaneous requests
+- Fixed order completion bug - now only updates localStorage after successful API response
+- Fixed AudioContext memory leak with proper cleanup on unmount
+- Fixed timezone issues for midnight transitions (configurable SHOP_TIMEZONE in get-orders.js)
+- Added localStorage error handling for quota exceeded scenarios
+- Optimized order number calculation from O(n²) to O(n) using useMemo
+
+**Audio System Overhaul:**
+- Completely redesigned notification sound system
+- Three-tone ascending pattern (E5→G5→C6) using square wave for maximum volume
+- Proper browser autoplay policy compliance with user interaction requirement
+- AudioContext state management with suspend/resume handling
+- Enable Sound button for initialization
+- Maximum gain (0.9-1.0) optimized for noisy coffee shop environment
+
+**Comprehensive Debug Mode:**
+- Matrix-style terminal UI with fixed panel (bottom-right)
+- Testing tools: simulate orders, test sound, force refresh, clear all
+- Live monitoring: API response times, fetch counts, error tracking
+- Order analytics: total/active/visible/completed statistics
+- System info: AudioContext state, loading status, localStorage size
+- Error history with timestamps (last 10 errors)
+- Export debug log as JSON file
+- Long-press activation (2 seconds on version number) or Ctrl+Shift+D
+- Persists across sessions via localStorage
+
+**Data Validation:**
+- Validates all purchase objects have required fields (purchaseUUID, products array)
+- Filters out malformed orders from Zettle API
+- Handles empty product arrays gracefully
+- Proper error logging with console output
+
+### v2.4.0
 - Updated to React 18 with new createRoot API
 - Kept Tailwind CSS at 2.2.19 for compatibility
 - Updated Node.js to v20 for Netlify Functions
 - Removed e-ink display specific styling
-- Updated build configuration for modern Netlify image
+- Updated build configuration for modern Netlify image (Ubuntu Noble 24.04)
