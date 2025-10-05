@@ -1,9 +1,11 @@
 [build]
   command = "npm install"
   functions = "netlify/functions"
+  base = "/"
 
 [build.environment]
   NODE_VERSION = "20"
+  AWS_LAMBDA_JS_RUNTIME = "nodejs20.x"
 
 [[plugins]]
   package = "@netlify/plugin-functions-install-core"

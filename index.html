@@ -156,6 +156,90 @@
             color: #666666;
         }
 
+        /* Debug panel */
+        .debug-panel {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 400px;
+            max-height: 80vh;
+            overflow-y: auto;
+            background: rgba(0, 0, 0, 0.95);
+            color: #00ff00;
+            border: 2px solid #00ff00;
+            padding: 1rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            z-index: 1000;
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
+        }
+
+        .debug-panel h3 {
+            color: #00ff00;
+            margin: 0 0 0.5rem 0;
+            font-size: 1rem;
+            border-bottom: 1px solid #00ff00;
+            padding-bottom: 0.25rem;
+        }
+
+        .debug-section {
+            margin-bottom: 1rem;
+        }
+
+        .debug-stat {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.25rem 0;
+            border-bottom: 1px solid #003300;
+        }
+
+        .debug-stat-label {
+            color: #00aa00;
+        }
+
+        .debug-stat-value {
+            color: #00ff00;
+            font-weight: bold;
+        }
+
+        .debug-button {
+            background: #003300;
+            color: #00ff00;
+            border: 1px solid #00ff00;
+            padding: 0.5rem;
+            margin: 0.25rem;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            width: calc(50% - 0.5rem);
+            display: inline-block;
+            text-align: center;
+        }
+
+        .debug-button:hover {
+            background: #005500;
+        }
+
+        .debug-button:active {
+            background: #007700;
+        }
+
+        .debug-close {
+            float: right;
+            cursor: pointer;
+            font-weight: bold;
+            color: #ff0000;
+        }
+
+        .debug-error {
+            color: #ff6666;
+            font-size: 0.75rem;
+            margin: 0.25rem 0;
+        }
+
+        .debug-success {
+            color: #66ff66;
+        }
+
         /* Grid layout */
         .orders-grid {
             display: grid;
@@ -279,10 +363,10 @@
         }
 
         // Header component
-        function Header({ onReset, onClearAll, onUndo, hasCompletedOrders, hasActiveOrders, 
-                 activeOrderCount, totalOrderCount, canUndo, lastOrderTime }) {
+        function Header({ onReset, onClearAll, onUndo, hasCompletedOrders, hasActiveOrders,
+                 activeOrderCount, totalOrderCount, canUndo, lastOrderTime, onEnableAudio, audioEnabled, onTestSound, debugMode, onToggleDebug }) {
   const [time, setTime] = React.useState(new Date());
-  const version = "2.4.0";
+  const version = "2.5.0";
 
   React.useEffect(() => {
     const timer = setInterval(() => {
@@ -305,7 +389,32 @@
         <div className="flex-1">
           <div className="flex items-baseline">
             <h1 className="text-3xl font-bold mr-2">Middle Street Coffee</h1>
-            <div className="version-text">v{version}</div>
+            <div
+              className="version-text"
+              onMouseDown={(e) => {
+                e.currentTarget.holdTimer = setTimeout(() => {
+                  onToggleDebug();
+                }, 2000); // Hold for 2 seconds
+              }}
+              onMouseUp={(e) => {
+                clearTimeout(e.currentTarget.holdTimer);
+              }}
+              onMouseLeave={(e) => {
+                clearTimeout(e.currentTarget.holdTimer);
+              }}
+              onTouchStart={(e) => {
+                e.currentTarget.holdTimer = setTimeout(() => {
+                  onToggleDebug();
+                }, 2000);
+              }}
+              onTouchEnd={(e) => {
+                clearTimeout(e.currentTarget.holdTimer);
+              }}
+              style={{ cursor: 'pointer', userSelect: 'none' }}
+              title="Hold for 2 seconds to toggle debug mode (or press Ctrl+Shift+D)"
+            >
+              v{version}{debugMode && ' 🐛'}
+            </div>
           </div>
           <div className="flex items-baseline gap-4">
             <div className="text-lg font-medium">{dayName}</div>
@@ -322,6 +431,11 @@
       </div>
 
       <div className="flex gap-2 mt-1">
+        {!audioEnabled && (
+          <button onClick={onEnableAudio} className="action-button" style={{ backgroundColor: '#90EE90', fontWeight: 'bold' }}>
+            🔔 Enable Sound
+          </button>
+        )}
         {canUndo && (
           <button onClick={onUndo} className="action-button">
             Undo Last
@@ -482,33 +596,126 @@
             const [error, setError] = React.useState(null);
             const [loading, setLoading] = React.useState(false);
             const [lastUpdateTime, setLastUpdateTime] = React.useState(null);
-            
+
             const audioContextRef = React.useRef(null);
             const previousOrderIdsRef = React.useRef(new Set());
+            const loadingRef = React.useRef(false);
+            const [audioEnabled, setAudioEnabled] = React.useState(false);
+            const [audioInitialized, setAudioInitialized] = React.useState(false);
+            const [debugMode, setDebugMode] = React.useState(() => {
+                return localStorage.getItem('debugMode') === 'true';
+            });
+            const [debugStats, setDebugStats] = React.useState({
+                lastFetchTime: null,
+                lastFetchDuration: 0,
+                totalFetches: 0,
+                errorCount: 0,
+                lastErrors: []
+            });
+            const [mockMode, setMockMode] = React.useState(false);
 
-            const playNotificationSound = () => {
+            // Toggle debug mode
+            const toggleDebugMode = React.useCallback(() => {
+                setDebugMode(prev => {
+                    const newValue = !prev;
+                    localStorage.setItem('debugMode', newValue.toString());
+                    console.log('Debug mode:', newValue ? 'ENABLED' : 'DISABLED');
+                    return newValue;
+                });
+            }, []);
+
+            // Keyboard shortcut for debug mode: Ctrl+Shift+D or Cmd+Shift+D
+            React.useEffect(() => {
+                const handleKeyPress = (e) => {
+                    if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'D') {
+                        e.preventDefault();
+                        toggleDebugMode();
+                    }
+                };
+                window.addEventListener('keydown', handleKeyPress);
+                return () => window.removeEventListener('keydown', handleKeyPress);
+            }, [toggleDebugMode]);
+
+            // Initialize audio on user interaction
+            const initializeAudio = React.useCallback(() => {
                 try {
                     if (!audioContextRef.current) {
-                        audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
+                        const AudioContext = window.AudioContext || window.webkitAudioContext;
+                        audioContextRef.current = new AudioContext();
                     }
+
+                    // Resume if suspended (Safari requirement)
+                    if (audioContextRef.current.state === 'suspended') {
+                        audioContextRef.current.resume();
+                    }
+
+                    setAudioInitialized(true);
+                    setAudioEnabled(true);
+                    console.log('Audio initialized successfully');
+                } catch (error) {
+                    console.error('Failed to initialize audio:', error);
+                    setAudioEnabled(false);
+                }
+            }, []);
+
+            const playNotificationSound = React.useCallback(() => {
+                if (!audioEnabled || !audioContextRef.current) {
+                    console.log('Audio not enabled or initialized');
+                    return;
+                }
+
+                try {
                     const context = audioContextRef.current;
-                    const oscillator = context.createOscillator();
-                    const gainNode = context.createGain();
-                    
-                    oscillator.connect(gainNode);
-                    gainNode.connect(context.destination);
-                    
-                    oscillator.type = 'sine';
-                    oscillator.frequency.setValueAtTime(440, context.currentTime);
-                    gainNode.gain.setValueAtTime(0.5, context.currentTime);
-                    
-                    oscillator.start(context.currentTime);
-                    oscillator.stop(context.currentTime + 0.2);
-                    gainNode.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 0.2);
+
+                    // Resume context if needed (browser autoplay policies)
+                    if (context.state === 'suspended') {
+                        context.resume().then(() => {
+                            console.log('Audio context resumed');
+                        });
+                        return;
+                    }
+
+                    // Create a LOUD attention-grabbing notification for noisy coffee shop
+                    const playTone = (frequency, startTime, duration, gain = 1.0) => {
+                        const oscillator = context.createOscillator();
+                        const gainNode = context.createGain();
+
+                        oscillator.connect(gainNode);
+                        gainNode.connect(context.destination);
+
+                        oscillator.type = 'square'; // Square wave is louder and more attention-grabbing
+                        oscillator.frequency.setValueAtTime(frequency, startTime);
+
+                        // MAXIMUM VOLUME with envelope
+                        gainNode.gain.setValueAtTime(0, startTime);
+                        gainNode.gain.linearRampToValueAtTime(gain, startTime + 0.02);
+                        gainNode.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
+
+                        oscillator.start(startTime);
+                        oscillator.stop(startTime + duration);
+                    };
+
+                    // Play THREE loud tones in ascending pattern - very attention-grabbing
+                    const now = context.currentTime;
+                    playTone(659.25, now, 0.2, 0.9);          // E5 - LOUD
+                    playTone(783.99, now + 0.2, 0.2, 0.9);    // G5 - LOUD
+                    playTone(1046.50, now + 0.4, 0.3, 1.0);   // C6 - MAXIMUM LOUD
+                    console.log('Notification sound played');
                 } catch (error) {
                     console.error('Error playing notification:', error);
                 }
-            };
+            }, [audioEnabled]);
+
+            // Clean up AudioContext on unmount
+            React.useEffect(() => {
+                return () => {
+                    if (audioContextRef.current) {
+                        audioContextRef.current.close().catch(err =>
+                            console.error('Error closing AudioContext:', err)
+                        );
+                    }
+                };
+            }, []);
 
             const activeOrders = React.useMemo(() => {
                 const today = new Date().toDateString();
@@ -523,16 +730,21 @@
             React.useEffect(() => {
                 const currentOrderIds = new Set(activeOrders.map(order => order.id));
                 const hasNewOrders = activeOrders.some(order => !previousOrderIdsRef.current.has(order.id));
-                
+
                 if (hasNewOrders && previousOrderIdsRef.current.size > 0) {
                     playNotificationSound();
                 }
-                
+
                 previousOrderIdsRef.current = currentOrderIds;
-            }, [activeOrders]);
+            }, [activeOrders, playNotificationSound]);
 
             React.useEffect(() => {
-                localStorage.setItem('completedOrders', JSON.stringify([...completedOrders]));
+                try {
+                    localStorage.setItem('completedOrders', JSON.stringify([...completedOrders]));
+                } catch (error) {
+                    console.error('Failed to save to localStorage:', error);
+                    // Could show error to user if needed
+                }
             }, [completedOrders]);
 
             const resetCompletedOrders = () => {
@@ -549,31 +761,64 @@
                 setCompletedOrders(newCompletedOrders);
             };
 
-            const fetchOrders = async () => {
-                if (loading) return;
+            const fetchOrders = React.useCallback(async () => {
+                if (loadingRef.current) return;
+                loadingRef.current = true;
                 setLoading(true);
+                const startTime = Date.now();
+
                 try {
                     const response = await fetch('/.netlify/functions/get-orders');
+                    const fetchDuration = Date.now() - startTime;
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+
                     const data = await response.json();
 
                     if (data.status === 'success') {
                         setOrders(data.orders);
                         setError(null);
                         setLastUpdateTime(new Date().toISOString());
+
+                        // Update debug stats
+                        setDebugStats(prev => ({
+                            ...prev,
+                            lastFetchTime: new Date().toISOString(),
+                            lastFetchDuration: fetchDuration,
+                            totalFetches: prev.totalFetches + 1
+                        }));
                     } else {
-                        setError(data.message);
+                        throw new Error(data.message || 'Failed to fetch orders');
                     }
                 } catch (error) {
-                    setError(error.message);
+                    console.error('Error fetching orders:', error);
+                    setError(`Connection error: ${error.message}`);
+
+                    // Update debug error stats
+                    setDebugStats(prev => ({
+                        ...prev,
+                        errorCount: prev.errorCount + 1,
+                        lastErrors: [
+                            {
+                                time: new Date().toISOString(),
+                                message: error.message
+                            },
+                            ...prev.lastErrors.slice(0, 9) // Keep last 10
+                        ]
+                    }));
+                } finally {
+                    loadingRef.current = false;
+                    setLoading(false);
                 }
-                setLoading(false);
-            };
+            }, []);
 
             React.useEffect(() => {
                 fetchOrders();
                 const interval = setInterval(fetchOrders, 5000);
                 return () => clearInterval(interval);
-            }, []);
+            }, [fetchOrders]);
 
             const toggleOrderComplete = async (orderId) => {
                 try {
@@ -585,20 +830,21 @@
                         body: JSON.stringify({ orderId }),
                     });
 
-                    if (response.ok) {
-                        setLastCompletedOrder(orderId);
-                        setCompletedOrders(prev => {
-                            const newSet = new Set(prev);
-                            newSet.add(orderId);
-                            return newSet;
-                        });
-                    } else {
-                        const data = await response.json();
-                        setError(data.message || 'Error marking order as complete');
+                    if (!response.ok) {
+                        const data = await response.json().catch(() => ({}));
+                        throw new Error(data.message || `HTTP error! status: ${response.status}`);
                     }
+
+                    // Only update localStorage after successful API response
+                    setLastCompletedOrder(orderId);
+                    setCompletedOrders(prev => {
+                        const newSet = new Set(prev);
+                        newSet.add(orderId);
+                        return newSet;
+                    });
                 } catch (error) {
                     console.error('Error marking order complete:', error);
-                    setError('Network error while marking order as complete');
+                    setError(`Failed to mark order as complete: ${error.message}`);
                 }
             };
 
@@ -618,25 +864,19 @@
                 return activeOrders[0].timestamp;
             }, [activeOrders]);
 
-            const getDailyOrderNumber = (orders, targetId) => {
+            // Pre-calculate order numbers for all orders (avoids O(n²) sorting)
+            const orderNumbers = React.useMemo(() => {
                 const today = new Date().toDateString();
-                let counter = 1;
+                const todayOrders = [...orders]
+                    .filter(order => new Date(order.timestamp).toDateString() === today)
+                    .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
 
-                const sortedOrders = [...orders].sort((a, b) =>
-                    new Date(a.timestamp) - new Date(b.timestamp)
-                );
-
-                for (const order of sortedOrders) {
-                    const orderDate = new Date(order.timestamp).toDateString();
-                    if (orderDate === today) {
-                        if (order.id === targetId) {
-                            return counter;
-                        }
-                        counter++;
-                    }
-                }
-                return null;
-            };
+                const numberMap = new Map();
+                todayOrders.forEach((order, index) => {
+                    numberMap.set(order.id, index + 1);
+                });
+                return numberMap;
+            }, [orders]);
 
             const visibleOrders = activeOrders.filter(order => !completedOrders.has(order.id));
 
@@ -656,6 +896,57 @@
                 }).length;
             }, [orders]);
 
+            // Debug functions
+            const simulateNewOrder = () => {
+                const mockOrder = {
+                    id: 'mock-' + Date.now(),
+                    orderNumber: Math.floor(Math.random() * 1000),
+                    time: new Date().toLocaleTimeString(),
+                    timestamp: new Date().toISOString(),
+                    items: [
+                        {
+                            name: 'Debug Test Latte',
+                            quantity: 1,
+                            variant: 'Large, Oat Milk',
+                            comment: 'Extra hot - TEST ORDER'
+                        }
+                    ],
+                    completed: false
+                };
+                setOrders(prev => [mockOrder, ...prev]);
+                console.log('Simulated new order:', mockOrder);
+            };
+
+            const clearAllDebugOrders = () => {
+                setOrders([]);
+                setCompletedOrders(new Set());
+                console.log('Cleared all orders');
+            };
+
+            const exportDebugLog = () => {
+                const log = {
+                    timestamp: new Date().toISOString(),
+                    version: '2.5.0',
+                    stats: debugStats,
+                    orders: orders.length,
+                    activeOrders: activeOrders.length,
+                    visibleOrders: visibleOrders.length,
+                    completedOrders: completedOrders.size,
+                    audioEnabled,
+                    mockMode,
+                    lastUpdateTime,
+                    error
+                };
+                const blob = new Blob([JSON.stringify(log, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `debug-log-${Date.now()}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+                console.log('Exported debug log');
+            };
+
             return (
                 <div className="p-4 max-w-6xl mx-auto relative">
                     <Header
@@ -668,6 +959,11 @@
                         totalOrderCount={totalOrderCount}
                         canUndo={!!lastCompletedOrder}
                         lastOrderTime={lastOrderTime}
+                        onEnableAudio={initializeAudio}
+                        audioEnabled={audioEnabled}
+                        onTestSound={playNotificationSound}
+                        debugMode={debugMode}
+                        onToggleDebug={toggleDebugMode}
                     />
 
                     <StatusInfo
@@ -687,11 +983,114 @@
                             <Order
                                 key={order.id}
                                 order={order}
-                                orderNumber={getDailyOrderNumber(orders, order.id)}
+                                orderNumber={orderNumbers.get(order.id)}
                                 onComplete={toggleOrderComplete}
                             />
                         ))}
                     </div>
+
+                    {/* Debug Panel */}
+                    {debugMode && (
+                        <div className="debug-panel">
+                            <span className="debug-close" onClick={toggleDebugMode}>✕</span>
+                            <h3>🐛 DEBUG MODE</h3>
+
+                            <div className="debug-section">
+                                <h3>Testing & Simulation</h3>
+                                <button className="debug-button" onClick={playNotificationSound}>🔊 Test Sound</button>
+                                <button className="debug-button" onClick={simulateNewOrder}>➕ Simulate Order</button>
+                                <button className="debug-button" onClick={clearAllDebugOrders}>🗑️ Clear All</button>
+                                <button className="debug-button" onClick={fetchOrders}>🔄 Force Refresh</button>
+                            </div>
+
+                            <div className="debug-section">
+                                <h3>Connection Stats</h3>
+                                <div className="debug-stat">
+                                    <span className="debug-stat-label">Total Fetches:</span>
+                                    <span className="debug-stat-value">{debugStats.totalFetches}</span>
+                                </div>
+                                <div className="debug-stat">
+                                    <span className="debug-stat-label">Last Fetch:</span>
+                                    <span className="debug-stat-value">
+                                        {debugStats.lastFetchTime ?
+                                            new Date(debugStats.lastFetchTime).toLocaleTimeString() : 'N/A'}
+                                    </span>
+                                </div>
+                                <div className="debug-stat">
+                                    <span className="debug-stat-label">Response Time:</span>
+                                    <span className="debug-stat-value">{debugStats.lastFetchDuration}ms</span>
+                                </div>
+                                <div className="debug-stat">
+                                    <span className="debug-stat-label">Error Count:</span>
+                                    <span className="debug-stat-value">{debugStats.errorCount}</span>
+                                </div>
+                            </div>
+
+                            <div className="debug-section">
+                                <h3>Order Stats</h3>
+                                <div className="debug-stat">
+                                    <span className="debug-stat-label">Total Orders:</span>
+                                    <span className="debug-stat-value">{orders.length}</span>
+                                </div>
+                                <div className="debug-stat">
+                                    <span className="debug-stat-label">Today's Orders:</span>
+                                    <span className="debug-stat-value">{totalOrderCount}</span>
+                                </div>
+                                <div className="debug-stat">
+                                    <span className="debug-stat-label">Active Orders:</span>
+                                    <span className="debug-stat-value">{activeOrders.length}</span>
+                                </div>
+                                <div className="debug-stat">
+                                    <span className="debug-stat-label">Visible Orders:</span>
+                                    <span className="debug-stat-value">{visibleOrders.length}</span>
+                                </div>
+                                <div className="debug-stat">
+                                    <span className="debug-stat-label">Completed:</span>
+                                    <span className="debug-stat-value">{completedOrders.size}</span>
+                                </div>
+                            </div>
+
+                            <div className="debug-section">
+                                <h3>System Info</h3>
+                                <div className="debug-stat">
+                                    <span className="debug-stat-label">Audio Context:</span>
+                                    <span className="debug-stat-value">
+                                        {audioContextRef.current ?
+                                            audioContextRef.current.state : 'Not initialized'}
+                                    </span>
+                                </div>
+                                <div className="debug-stat">
+                                    <span className="debug-stat-label">Audio Enabled:</span>
+                                    <span className="debug-stat-value">{audioEnabled ? 'Yes' : 'No'}</span>
+                                </div>
+                                <div className="debug-stat">
+                                    <span className="debug-stat-label">Loading:</span>
+                                    <span className="debug-stat-value">{loading ? 'Yes' : 'No'}</span>
+                                </div>
+                                <div className="debug-stat">
+                                    <span className="debug-stat-label">Mock Mode:</span>
+                                    <span className="debug-stat-value">{mockMode ? 'Yes' : 'No'}</span>
+                                </div>
+                            </div>
+
+                            {debugStats.lastErrors.length > 0 && (
+                                <div className="debug-section">
+                                    <h3>Recent Errors</h3>
+                                    {debugStats.lastErrors.slice(0, 3).map((err, idx) => (
+                                        <div key={idx} className="debug-error">
+                                            [{new Date(err.time).toLocaleTimeString()}] {err.message}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
+                            <div className="debug-section">
+                                <button className="debug-button" onClick={exportDebugLog} style={{ width: '100%' }}>
+                                    💾 Export Debug Log
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </div>
             );
         }
