@@ -1,8 +1,12 @@
 {
   "name": "coffee-orders",
-  "version": "1.0.0",
+  "version": "2.4.0",
   "description": "Coffee shop order display",
+  "type": "commonjs",
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "dependencies": {
-    "node-fetch": "^2.6.1"
+    "node-fetch": "^2.7.0"
   }
 }

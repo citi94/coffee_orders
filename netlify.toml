@@ -2,6 +2,9 @@
   command = "npm install"
   functions = "netlify/functions"
 
+[build.environment]
+  NODE_VERSION = "20"
+
 [[plugins]]
   package = "@netlify/plugin-functions-install-core"
 
@@ -9,7 +12,7 @@
   included_files = ["netlify/functions/completed_orders.json"]
   node_bundler = "esbuild"
 
-  [dev]
+[dev]
   publish = "."
   port = 8888
   framework = "#static"

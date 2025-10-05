@@ -3,8 +3,8 @@
 <head>
     <title>Middle Street Coffee</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <script src="https://unpkg.com/react@17.0.2/umd/react.production.min.js"></script>
-    <script src="https://unpkg.com/react-dom@17.0.2/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/react@18.2.0/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/babel-standalone@6.26.0/babel.min.js"></script>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <style>
@@ -69,13 +69,6 @@
             z-index: -2;
         }
 
-        /* E-ink display support */
-        @media (monochrome) {
-            .brew-indicator {
-                background-color: #000000;
-                mix-blend-mode: normal;
-            }
-        }
 
         /* Header styling */
         .header-card {
@@ -83,6 +76,20 @@
             margin-bottom: 0.8rem;
             padding: 0.6rem;
             background-color: rgba(144, 238, 144, 0.1);
+        }
+
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 0.25rem;
+        }
+
+        .header-info {
+            display: flex;
+            align-items: baseline;
+            gap: 1rem;
+            flex-wrap: wrap;
         }
 
         /* Button styling */
@@ -275,7 +282,7 @@
         function Header({ onReset, onClearAll, onUndo, hasCompletedOrders, hasActiveOrders, 
                  activeOrderCount, totalOrderCount, canUndo, lastOrderTime }) {
   const [time, setTime] = React.useState(new Date());
-  const version = "2.3.7";
+  const version = "2.4.0";
 
   React.useEffect(() => {
     const timer = setInterval(() => {
@@ -313,7 +320,7 @@
           <div className="text-2xl font-bold">{formattedTime}</div>
         </div>
       </div>
-    
+
       <div className="flex gap-2 mt-1">
         {canUndo && (
           <button onClick={onUndo} className="action-button">
@@ -689,7 +696,8 @@
             );
         }
 
-        ReactDOM.render(<OrdersDisplay />, document.getElementById('root'));
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<OrdersDisplay />);
     </script>
 </body>
 </html>
