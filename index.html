@@ -439,7 +439,7 @@
         function Header({ onReset, onClearAll, onUndo, hasCompletedOrders, hasActiveOrders,
                  activeOrderCount, totalOrderCount, canUndo, lastOrderTime, onEnableAudio, audioEnabled, onShowSoundPanel, debugMode, onToggleDebug }) {
   const [time, setTime] = React.useState(new Date());
-  const version = "2.5.0";
+  const version = "3.0.0";
 
   React.useEffect(() => {
     const timer = setInterval(() => {
@@ -1458,7 +1458,7 @@
             const exportDebugLog = () => {
                 const log = {
                     timestamp: new Date().toISOString(),
-                    version: '2.5.0',
+                    version: '3.0.0',
                     stats: debugStats,
                     orders: orders.length,
                     activeOrders: activeOrders.length,
