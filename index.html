@@ -551,6 +551,29 @@
   );
 }
 
+        // SourceBadge component
+        function SourceBadge({ source }) {
+            const badges = {
+                'zettle': { icon: '🏪', text: 'In-Store', color: '#4A90E2' },
+                'custom': { icon: '🌐', text: 'Online', color: '#50C878' }
+            };
+
+            const badge = badges[source] || { icon: '❓', text: 'Unknown', color: '#999' };
+
+            return React.createElement('span', {
+                style: {
+                    display: 'inline-block',
+                    padding: '2px 8px',
+                    borderRadius: '4px',
+                    backgroundColor: badge.color,
+                    color: 'white',
+                    fontSize: '0.75rem',
+                    fontWeight: 'bold',
+                    marginLeft: '0.5rem'
+                }
+            }, `${badge.icon} ${badge.text}`);
+        }
+
         // Order component
         function Order({ order, orderNumber, onComplete }) {
             const [orderState, setOrderState] = React.useState({
@@ -626,6 +649,7 @@
                         <div className="flex justify-between items-start">
                             <div className="order-number">
                                 No. {orderNumber}
+                                {React.createElement(SourceBadge, { source: order.source })}
                             </div>
                             <button
                                 onClick={() => onComplete(order.id)}
@@ -658,6 +682,31 @@
                                 </div>
                             ))}
                         </div>
+
+                        {/* Order Metadata Section */}
+                        {(order.tableNumber || order.customerName || order.orderType) && (
+                            <div style={{
+                                marginTop: '0.75rem',
+                                padding: '0.5rem',
+                                backgroundColor: 'rgba(0,0,0,0.05)',
+                                borderRadius: '4px',
+                                fontSize: '0.85rem'
+                            }}>
+                                {order.tableNumber && (
+                                    <div className="main-text">📍 Table {order.tableNumber}</div>
+                                )}
+                                {order.customerName && (
+                                    <div className="main-text">👤 {order.customerName}</div>
+                                )}
+                                {order.orderType && (
+                                    <div className="main-text">
+                                        {order.orderType === 'dine-in' && '🍽️ Dine-in'}
+                                        {order.orderType === 'takeout' && '📦 Takeout'}
+                                        {order.orderType === 'remote' && '🚗 Pickup'}
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
 
                     <div className="absolute bottom-3 right-3 text-right">
@@ -1299,12 +1348,18 @@
 
             const toggleOrderComplete = async (orderId) => {
                 try {
+                    // Find the order to get its source
+                    const order = orders.find(o => o.id === orderId);
+
                     const response = await fetch('/.netlify/functions/mark-complete', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
                         },
-                        body: JSON.stringify({ orderId }),
+                        body: JSON.stringify({
+                            orderId,
+                            source: (order && order.source) || 'zettle'
+                        }),
                     });
 
                     if (!response.ok) {
@@ -1548,6 +1603,14 @@
                                 <div className="debug-stat">
                                     <span className="debug-stat-label">Visible Orders:</span>
                                     <span className="debug-stat-value">{visibleOrders.length}</span>
+                                </div>
+                                <div className="debug-stat">
+                                    <span className="debug-stat-label">🏪 Zettle Orders:</span>
+                                    <span className="debug-stat-value">{orders.filter(o => o.source === 'zettle').length}</span>
+                                </div>
+                                <div className="debug-stat">
+                                    <span className="debug-stat-label">🌐 Custom Orders:</span>
+                                    <span className="debug-stat-value">{orders.filter(o => o.source === 'custom').length}</span>
                                 </div>
                                 <div className="debug-stat">
                                     <span className="debug-stat-label">Completed:</span>
