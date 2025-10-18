@@ -392,7 +392,9 @@
             <div
               className="version-text"
               onMouseDown={(e) => {
-                e.currentTarget.holdTimer = setTimeout(() => {
+                e.preventDefault();
+                const target = e.currentTarget;
+                target.holdTimer = setTimeout(() => {
                   onToggleDebug();
                 }, 2000); // Hold for 2 seconds
               }}
@@ -403,14 +405,29 @@
                 clearTimeout(e.currentTarget.holdTimer);
               }}
               onTouchStart={(e) => {
-                e.currentTarget.holdTimer = setTimeout(() => {
+                e.preventDefault();
+                const target = e.currentTarget;
+                target.holdTimer = setTimeout(() => {
                   onToggleDebug();
                 }, 2000);
               }}
               onTouchEnd={(e) => {
+                e.preventDefault();
                 clearTimeout(e.currentTarget.holdTimer);
               }}
-              style={{ cursor: 'pointer', userSelect: 'none' }}
+              onTouchCancel={(e) => {
+                clearTimeout(e.currentTarget.holdTimer);
+              }}
+              onContextMenu={(e) => {
+                e.preventDefault(); // Prevent context menu on long press
+              }}
+              style={{
+                cursor: 'pointer',
+                userSelect: 'none',
+                WebkitTouchCallout: 'none',
+                WebkitUserSelect: 'none',
+                touchAction: 'manipulation'
+              }}
               title="Hold for 2 seconds to toggle debug mode (or press Ctrl+Shift+D)"
             >
               v{version}{debugMode && ' 🐛'}
@@ -434,6 +451,11 @@
         {!audioEnabled && (
           <button onClick={onEnableAudio} className="action-button" style={{ backgroundColor: '#90EE90', fontWeight: 'bold' }}>
             🔔 Enable Sound
+          </button>
+        )}
+        {audioEnabled && (
+          <button onClick={onToggleDebug} className="action-button" style={{ backgroundColor: '#FFD700', fontWeight: 'bold' }}>
+            🔊 Sound Settings
           </button>
         )}
         {canUndo && (
@@ -602,6 +624,9 @@
             const loadingRef = React.useRef(false);
             const [audioEnabled, setAudioEnabled] = React.useState(false);
             const [audioInitialized, setAudioInitialized] = React.useState(false);
+            const [selectedSound, setSelectedSound] = React.useState(() => {
+                return localStorage.getItem('selectedSound') || 'triple-ascending';
+            });
             const [debugMode, setDebugMode] = React.useState(() => {
                 return localStorage.getItem('debugMode') === 'true';
             });
@@ -635,6 +660,397 @@
                 window.addEventListener('keydown', handleKeyPress);
                 return () => window.removeEventListener('keydown', handleKeyPress);
             }, [toggleDebugMode]);
+
+            // Sound Library - 20 different notification options
+            const soundLibrary = {
+                'triple-ascending': {
+                    name: '🔔 Triple Ascending (Current)',
+                    description: 'Loud three-tone pattern (E5→G5→C6)',
+                    play: (ctx) => {
+                        const playTone = (freq, start, dur, gain) => {
+                            const osc = ctx.createOscillator();
+                            const g = ctx.createGain();
+                            osc.connect(g); g.connect(ctx.destination);
+                            osc.type = 'square';
+                            osc.frequency.setValueAtTime(freq, start);
+                            g.gain.setValueAtTime(0, start);
+                            g.gain.linearRampToValueAtTime(gain, start + 0.02);
+                            g.gain.exponentialRampToValueAtTime(0.01, start + dur);
+                            osc.start(start); osc.stop(start + dur);
+                        };
+                        const now = ctx.currentTime;
+                        playTone(659.25, now, 0.2, 0.9);
+                        playTone(783.99, now + 0.2, 0.2, 0.9);
+                        playTone(1046.50, now + 0.4, 0.3, 1.0);
+                    }
+                },
+                'gentle-chime': {
+                    name: '🎵 Gentle Chime',
+                    description: 'Soft, pleasant two-tone',
+                    play: (ctx) => {
+                        const playTone = (freq, start, dur) => {
+                            const osc = ctx.createOscillator();
+                            const g = ctx.createGain();
+                            osc.connect(g); g.connect(ctx.destination);
+                            osc.type = 'sine';
+                            osc.frequency.setValueAtTime(freq, start);
+                            g.gain.setValueAtTime(0, start);
+                            g.gain.linearRampToValueAtTime(0.3, start + 0.01);
+                            g.gain.exponentialRampToValueAtTime(0.01, start + dur);
+                            osc.start(start); osc.stop(start + dur);
+                        };
+                        const now = ctx.currentTime;
+                        playTone(523.25, now, 0.3);
+                        playTone(659.25, now + 0.15, 0.4);
+                    }
+                },
+                'doorbell': {
+                    name: '🚪 Doorbell',
+                    description: 'Classic ding-dong pattern',
+                    play: (ctx) => {
+                        const playTone = (freq, start, dur) => {
+                            const osc = ctx.createOscillator();
+                            const g = ctx.createGain();
+                            osc.connect(g); g.connect(ctx.destination);
+                            osc.type = 'sine';
+                            osc.frequency.setValueAtTime(freq, start);
+                            g.gain.setValueAtTime(0.5, start);
+                            g.gain.exponentialRampToValueAtTime(0.01, start + dur);
+                            osc.start(start); osc.stop(start + dur);
+                        };
+                        const now = ctx.currentTime;
+                        playTone(659.25, now, 0.3);
+                        playTone(523.25, now + 0.3, 0.5);
+                    }
+                },
+                'single-beep': {
+                    name: '📟 Single Beep',
+                    description: 'Quick, simple beep',
+                    play: (ctx) => {
+                        const osc = ctx.createOscillator();
+                        const g = ctx.createGain();
+                        osc.connect(g); g.connect(ctx.destination);
+                        osc.type = 'square';
+                        osc.frequency.setValueAtTime(800, ctx.currentTime);
+                        g.gain.setValueAtTime(0.7, ctx.currentTime);
+                        g.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
+                        osc.start(ctx.currentTime);
+                        osc.stop(ctx.currentTime + 0.15);
+                    }
+                },
+                'double-beep': {
+                    name: '📟📟 Double Beep',
+                    description: 'Two quick beeps',
+                    play: (ctx) => {
+                        const beep = (start) => {
+                            const osc = ctx.createOscillator();
+                            const g = ctx.createGain();
+                            osc.connect(g); g.connect(ctx.destination);
+                            osc.type = 'square';
+                            osc.frequency.setValueAtTime(800, start);
+                            g.gain.setValueAtTime(0.6, start);
+                            g.gain.exponentialRampToValueAtTime(0.01, start + 0.1);
+                            osc.start(start); osc.stop(start + 0.1);
+                        };
+                        const now = ctx.currentTime;
+                        beep(now);
+                        beep(now + 0.15);
+                    }
+                },
+                'escalating': {
+                    name: '📈 Escalating',
+                    description: 'Rising urgency pattern',
+                    play: (ctx) => {
+                        const playTone = (freq, start, dur, gain) => {
+                            const osc = ctx.createOscillator();
+                            const g = ctx.createGain();
+                            osc.connect(g); g.connect(ctx.destination);
+                            osc.type = 'square';
+                            osc.frequency.setValueAtTime(freq, start);
+                            g.gain.setValueAtTime(0, start);
+                            g.gain.linearRampToValueAtTime(gain, start + 0.01);
+                            g.gain.exponentialRampToValueAtTime(0.01, start + dur);
+                            osc.start(start); osc.stop(start + dur);
+                        };
+                        const now = ctx.currentTime;
+                        playTone(400, now, 0.15, 0.5);
+                        playTone(600, now + 0.15, 0.15, 0.7);
+                        playTone(800, now + 0.3, 0.15, 0.9);
+                        playTone(1000, now + 0.45, 0.2, 1.0);
+                    }
+                },
+                'descending': {
+                    name: '📉 Descending',
+                    description: 'Falling pattern',
+                    play: (ctx) => {
+                        const playTone = (freq, start, dur) => {
+                            const osc = ctx.createOscillator();
+                            const g = ctx.createGain();
+                            osc.connect(g); g.connect(ctx.destination);
+                            osc.type = 'sine';
+                            osc.frequency.setValueAtTime(freq, start);
+                            g.gain.setValueAtTime(0.6, start);
+                            g.gain.exponentialRampToValueAtTime(0.01, start + dur);
+                            osc.start(start); osc.stop(start + dur);
+                        };
+                        const now = ctx.currentTime;
+                        playTone(1046.50, now, 0.2);
+                        playTone(783.99, now + 0.2, 0.2);
+                        playTone(523.25, now + 0.4, 0.3);
+                    }
+                },
+                'police': {
+                    name: '🚨 Police Siren',
+                    description: 'Alternating high-low',
+                    play: (ctx) => {
+                        const siren = (start, dur) => {
+                            const osc = ctx.createOscillator();
+                            const g = ctx.createGain();
+                            osc.connect(g); g.connect(ctx.destination);
+                            osc.type = 'square';
+                            osc.frequency.setValueAtTime(700, start);
+                            osc.frequency.linearRampToValueAtTime(500, start + dur/2);
+                            osc.frequency.linearRampToValueAtTime(700, start + dur);
+                            g.gain.setValueAtTime(0.7, start);
+                            osc.start(start); osc.stop(start + dur);
+                        };
+                        const now = ctx.currentTime;
+                        siren(now, 0.3);
+                        siren(now + 0.3, 0.3);
+                    }
+                },
+                'robot': {
+                    name: '🤖 Robot',
+                    description: 'Synthetic computer sound',
+                    play: (ctx) => {
+                        const playTone = (freq, start, dur) => {
+                            const osc = ctx.createOscillator();
+                            const g = ctx.createGain();
+                            osc.connect(g); g.connect(ctx.destination);
+                            osc.type = 'sawtooth';
+                            osc.frequency.setValueAtTime(freq, start);
+                            g.gain.setValueAtTime(0.4, start);
+                            g.gain.exponentialRampToValueAtTime(0.01, start + dur);
+                            osc.start(start); osc.stop(start + dur);
+                        };
+                        const now = ctx.currentTime;
+                        playTone(300, now, 0.08);
+                        playTone(350, now + 0.08, 0.08);
+                        playTone(400, now + 0.16, 0.08);
+                        playTone(450, now + 0.24, 0.12);
+                    }
+                },
+                'xylophone': {
+                    name: '🎹 Xylophone',
+                    description: 'Musical scale pattern',
+                    play: (ctx) => {
+                        const playNote = (freq, start) => {
+                            const osc = ctx.createOscillator();
+                            const g = ctx.createGain();
+                            osc.connect(g); g.connect(ctx.destination);
+                            osc.type = 'sine';
+                            osc.frequency.setValueAtTime(freq, start);
+                            g.gain.setValueAtTime(0.4, start);
+                            g.gain.exponentialRampToValueAtTime(0.01, start + 0.2);
+                            osc.start(start); osc.stop(start + 0.2);
+                        };
+                        const now = ctx.currentTime;
+                        playNote(523.25, now);
+                        playNote(587.33, now + 0.1);
+                        playNote(659.25, now + 0.2);
+                        playNote(783.99, now + 0.3);
+                    }
+                },
+                'microwave': {
+                    name: '⏲️ Microwave Done',
+                    description: 'Three quick beeps',
+                    play: (ctx) => {
+                        const beep = (start) => {
+                            const osc = ctx.createOscillator();
+                            const g = ctx.createGain();
+                            osc.connect(g); g.connect(ctx.destination);
+                            osc.type = 'sine';
+                            osc.frequency.setValueAtTime(1000, start);
+                            g.gain.setValueAtTime(0.5, start);
+                            g.gain.exponentialRampToValueAtTime(0.01, start + 0.1);
+                            osc.start(start); osc.stop(start + 0.1);
+                        };
+                        const now = ctx.currentTime;
+                        beep(now);
+                        beep(now + 0.12);
+                        beep(now + 0.24);
+                    }
+                },
+                'spaceship': {
+                    name: '🚀 Spaceship',
+                    description: 'Sci-fi swoosh',
+                    play: (ctx) => {
+                        const osc = ctx.createOscillator();
+                        const g = ctx.createGain();
+                        osc.connect(g); g.connect(ctx.destination);
+                        osc.type = 'sawtooth';
+                        const now = ctx.currentTime;
+                        osc.frequency.setValueAtTime(1200, now);
+                        osc.frequency.exponentialRampToValueAtTime(200, now + 0.5);
+                        g.gain.setValueAtTime(0.6, now);
+                        g.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+                        osc.start(now); osc.stop(now + 0.5);
+                    }
+                },
+                'laser': {
+                    name: '⚡ Laser Zap',
+                    description: 'Quick laser sound',
+                    play: (ctx) => {
+                        const osc = ctx.createOscillator();
+                        const g = ctx.createGain();
+                        osc.connect(g); g.connect(ctx.destination);
+                        osc.type = 'sawtooth';
+                        const now = ctx.currentTime;
+                        osc.frequency.setValueAtTime(1500, now);
+                        osc.frequency.exponentialRampToValueAtTime(100, now + 0.15);
+                        g.gain.setValueAtTime(0.7, now);
+                        g.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+                        osc.start(now); osc.stop(now + 0.15);
+                    }
+                },
+                'bells': {
+                    name: '🔔 Church Bells',
+                    description: 'Resonant bell tones',
+                    play: (ctx) => {
+                        const bell = (freq, start) => {
+                            const osc = ctx.createOscillator();
+                            const g = ctx.createGain();
+                            osc.connect(g); g.connect(ctx.destination);
+                            osc.type = 'sine';
+                            osc.frequency.setValueAtTime(freq, start);
+                            g.gain.setValueAtTime(0.5, start);
+                            g.gain.exponentialRampToValueAtTime(0.01, start + 0.8);
+                            osc.start(start); osc.stop(start + 0.8);
+                        };
+                        const now = ctx.currentTime;
+                        bell(523.25, now);
+                        bell(659.25, now + 0.4);
+                    }
+                },
+                'trumpet': {
+                    name: '🎺 Trumpet',
+                    description: 'Fanfare-style alert',
+                    play: (ctx) => {
+                        const playNote = (freq, start, dur) => {
+                            const osc = ctx.createOscillator();
+                            const g = ctx.createGain();
+                            osc.connect(g); g.connect(ctx.destination);
+                            osc.type = 'sawtooth';
+                            osc.frequency.setValueAtTime(freq, start);
+                            g.gain.setValueAtTime(0, start);
+                            g.gain.linearRampToValueAtTime(0.5, start + 0.05);
+                            g.gain.exponentialRampToValueAtTime(0.01, start + dur);
+                            osc.start(start); osc.stop(start + dur);
+                        };
+                        const now = ctx.currentTime;
+                        playNote(523.25, now, 0.2);
+                        playNote(659.25, now + 0.2, 0.2);
+                        playNote(783.99, now + 0.4, 0.3);
+                    }
+                },
+                'whistle': {
+                    name: '😗 Whistle',
+                    description: 'Short whistle sound',
+                    play: (ctx) => {
+                        const osc = ctx.createOscillator();
+                        const g = ctx.createGain();
+                        osc.connect(g); g.connect(ctx.destination);
+                        osc.type = 'sine';
+                        const now = ctx.currentTime;
+                        osc.frequency.setValueAtTime(2000, now);
+                        osc.frequency.linearRampToValueAtTime(2200, now + 0.1);
+                        osc.frequency.linearRampToValueAtTime(2000, now + 0.2);
+                        g.gain.setValueAtTime(0.4, now);
+                        g.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                        osc.start(now); osc.stop(now + 0.3);
+                    }
+                },
+                'ping': {
+                    name: '📍 Sonar Ping',
+                    description: 'Submarine-style ping',
+                    play: (ctx) => {
+                        const ping = (start) => {
+                            const osc = ctx.createOscillator();
+                            const g = ctx.createGain();
+                            osc.connect(g); g.connect(ctx.destination);
+                            osc.type = 'sine';
+                            osc.frequency.setValueAtTime(1200, start);
+                            g.gain.setValueAtTime(0.6, start);
+                            g.gain.exponentialRampToValueAtTime(0.01, start + 0.3);
+                            osc.start(start); osc.stop(start + 0.3);
+                        };
+                        ping(ctx.currentTime);
+                    }
+                },
+                'woodblock': {
+                    name: '🪵 Woodblock',
+                    description: 'Percussive tap',
+                    play: (ctx) => {
+                        const tap = (start) => {
+                            const osc = ctx.createOscillator();
+                            const g = ctx.createGain();
+                            osc.connect(g); g.connect(ctx.destination);
+                            osc.type = 'square';
+                            osc.frequency.setValueAtTime(800, start);
+                            g.gain.setValueAtTime(0.8, start);
+                            g.gain.exponentialRampToValueAtTime(0.01, start + 0.05);
+                            osc.start(start); osc.stop(start + 0.05);
+                        };
+                        const now = ctx.currentTime;
+                        tap(now);
+                        tap(now + 0.1);
+                    }
+                },
+                'alarm': {
+                    name: '⏰ Alarm Clock',
+                    description: 'Classic alarm sound',
+                    play: (ctx) => {
+                        const buzz = (start, dur) => {
+                            const osc = ctx.createOscillator();
+                            const g = ctx.createGain();
+                            const lfo = ctx.createOscillator();
+                            const lfoGain = ctx.createGain();
+                            lfo.connect(lfoGain);
+                            lfoGain.connect(g.gain);
+                            osc.connect(g); g.connect(ctx.destination);
+                            osc.type = 'square';
+                            lfo.type = 'sine';
+                            osc.frequency.setValueAtTime(880, start);
+                            lfo.frequency.setValueAtTime(10, start);
+                            lfoGain.gain.setValueAtTime(0.3, start);
+                            g.gain.setValueAtTime(0.5, start);
+                            osc.start(start); osc.stop(start + dur);
+                            lfo.start(start); lfo.stop(start + dur);
+                        };
+                        buzz(ctx.currentTime, 0.5);
+                    }
+                },
+                'notification': {
+                    name: '📱 Phone Notification',
+                    description: 'Modern smartphone alert',
+                    play: (ctx) => {
+                        const playTone = (freq, start, dur) => {
+                            const osc = ctx.createOscillator();
+                            const g = ctx.createGain();
+                            osc.connect(g); g.connect(ctx.destination);
+                            osc.type = 'triangle';
+                            osc.frequency.setValueAtTime(freq, start);
+                            g.gain.setValueAtTime(0, start);
+                            g.gain.linearRampToValueAtTime(0.4, start + 0.02);
+                            g.gain.exponentialRampToValueAtTime(0.01, start + dur);
+                            osc.start(start); osc.stop(start + dur);
+                        };
+                        const now = ctx.currentTime;
+                        playTone(800, now, 0.1);
+                        playTone(1000, now + 0.1, 0.15);
+                    }
+                }
+            };
 
             // Initialize audio on user interaction
             const initializeAudio = React.useCallback(() => {
@@ -675,36 +1091,23 @@
                         return;
                     }
 
-                    // Create a LOUD attention-grabbing notification for noisy coffee shop
-                    const playTone = (frequency, startTime, duration, gain = 1.0) => {
-                        const oscillator = context.createOscillator();
-                        const gainNode = context.createGain();
-
-                        oscillator.connect(gainNode);
-                        gainNode.connect(context.destination);
-
-                        oscillator.type = 'square'; // Square wave is louder and more attention-grabbing
-                        oscillator.frequency.setValueAtTime(frequency, startTime);
-
-                        // MAXIMUM VOLUME with envelope
-                        gainNode.gain.setValueAtTime(0, startTime);
-                        gainNode.gain.linearRampToValueAtTime(gain, startTime + 0.02);
-                        gainNode.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
-
-                        oscillator.start(startTime);
-                        oscillator.stop(startTime + duration);
-                    };
-
-                    // Play THREE loud tones in ascending pattern - very attention-grabbing
-                    const now = context.currentTime;
-                    playTone(659.25, now, 0.2, 0.9);          // E5 - LOUD
-                    playTone(783.99, now + 0.2, 0.2, 0.9);    // G5 - LOUD
-                    playTone(1046.50, now + 0.4, 0.3, 1.0);   // C6 - MAXIMUM LOUD
-                    console.log('Notification sound played');
+                    // Play the selected sound from library
+                    const sound = soundLibrary[selectedSound];
+                    if (sound && sound.play) {
+                        sound.play(context);
+                        console.log(`Played notification sound: ${sound.name}`);
+                    }
                 } catch (error) {
                     console.error('Error playing notification:', error);
                 }
-            }, [audioEnabled]);
+            }, [audioEnabled, selectedSound, soundLibrary]);
+
+            // Change sound and persist to localStorage
+            const changeSound = React.useCallback((soundId) => {
+                setSelectedSound(soundId);
+                localStorage.setItem('selectedSound', soundId);
+                console.log(`Sound changed to: ${soundLibrary[soundId].name}`);
+            }, [soundLibrary]);
 
             // Clean up AudioContext on unmount
             React.useEffect(() => {
@@ -994,6 +1397,34 @@
                         <div className="debug-panel">
                             <span className="debug-close" onClick={toggleDebugMode}>✕</span>
                             <h3>🐛 DEBUG MODE</h3>
+
+                            <div className="debug-section">
+                                <h3>Sound Selection</h3>
+                                <div style={{ marginBottom: '0.5rem', color: '#00ff00', fontSize: '0.9rem' }}>
+                                    Current: {soundLibrary[selectedSound].name}
+                                </div>
+                                <select
+                                    value={selectedSound}
+                                    onChange={(e) => changeSound(e.target.value)}
+                                    style={{
+                                        width: '100%',
+                                        padding: '0.5rem',
+                                        backgroundColor: '#003300',
+                                        color: '#00ff00',
+                                        border: '1px solid #00ff00',
+                                        fontFamily: 'Courier New, monospace',
+                                        fontSize: '0.85rem',
+                                        marginBottom: '0.5rem'
+                                    }}
+                                >
+                                    {Object.entries(soundLibrary).map(([id, sound]) => (
+                                        <option key={id} value={id}>{sound.name}</option>
+                                    ))}
+                                </select>
+                                <div style={{ fontSize: '0.75rem', color: '#00aa00', marginBottom: '0.5rem' }}>
+                                    {soundLibrary[selectedSound].description}
+                                </div>
+                            </div>
 
                             <div className="debug-section">
                                 <h3>Testing & Simulation</h3>
