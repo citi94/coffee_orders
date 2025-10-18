@@ -87,6 +87,17 @@ Required in Netlify environment:
 - Square wave oscillator for maximum volume
 - Gain levels: 0.9-1.0 (near maximum)
 - Automatically closes AudioContext on component unmount
+- 20 different notification sounds available for user selection
+- User-friendly sound settings panel (separate from debug mode)
+
+**Sound Settings Panel**:
+- Accessed via "🔊 Sound Settings" button in header (visible after enabling sound)
+- Clean, centered modal overlay with white background
+- Lists all 20 available notification sounds
+- Selected sound highlighted in green
+- Clicking a sound automatically plays it for preview
+- Sound preference persists across sessions via localStorage
+- Completely separate from technical debug panel
 
 **Debug Mode**:
 - Activated by holding version number for 2 seconds or Ctrl+Shift+D
@@ -138,6 +149,22 @@ Current version: 2.5.0 (displayed in header)
 - Enable Sound button for initialization
 - Maximum gain (0.9-1.0) optimized for noisy coffee shop environment
 
+**Sound Library (20 Options):**
+- Added comprehensive library of notification sounds for barista preference
+- Range from gentle chimes to loud buzzing alerts
+- Categories: ascending tones, descending patterns, single/double beeps, nature sounds, classic alerts
+- Each sound optimized for coffee shop environment
+- Default: Triple Ascending (E5→G5→C6)
+
+**User-Friendly Sound Settings:**
+- Separate sound settings panel for end users (not technical debug info)
+- Accessed via prominent "🔊 Sound Settings" button
+- Modal interface with overlay and centered panel
+- Clean list of all 20 sound options
+- Live preview on selection
+- Selected sound highlighted in green
+- Uses React.Fragment for Babel standalone compatibility
+
 **Comprehensive Debug Mode:**
 - Matrix-style terminal UI with fixed panel (bottom-right)
 - Testing tools: simulate orders, test sound, force refresh, clear all
@@ -148,6 +175,7 @@ Current version: 2.5.0 (displayed in header)
 - Export debug log as JSON file
 - Long-press activation (2 seconds on version number) or Ctrl+Shift+D
 - Persists across sessions via localStorage
+- Separate from user-facing sound settings panel
 
 **Data Validation:**
 - Validates all purchase objects have required fields (purchaseUUID, products array)
