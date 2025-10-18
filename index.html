@@ -240,6 +240,79 @@
             color: #66ff66;
         }
 
+        /* Sound Panel */
+        .sound-panel-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1999;
+        }
+
+        .sound-panel {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 90%;
+            max-width: 500px;
+            max-height: 80vh;
+            overflow-y: auto;
+            background: white;
+            border: 3px solid #000;
+            padding: 1.5rem;
+            z-index: 2000;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .sound-panel h2 {
+            margin: 0 0 1rem 0;
+            font-size: 1.5rem;
+            border-bottom: 2px solid #000;
+            padding-bottom: 0.5rem;
+        }
+
+        .sound-panel-close {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            font-size: 1.5rem;
+            cursor: pointer;
+            font-weight: bold;
+            line-height: 1;
+        }
+
+        .sound-item {
+            border: 2px solid #ccc;
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .sound-item:hover {
+            border-color: #666;
+            background: #f5f5f5;
+        }
+
+        .sound-item.active {
+            border-color: #000;
+            background: #90EE90;
+            font-weight: bold;
+        }
+
+        .sound-item-name {
+            font-size: 1.1rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .sound-item-desc {
+            font-size: 0.9rem;
+            color: #666;
+        }
+
         /* Grid layout */
         .orders-grid {
             display: grid;
@@ -364,7 +437,7 @@
 
         // Header component
         function Header({ onReset, onClearAll, onUndo, hasCompletedOrders, hasActiveOrders,
-                 activeOrderCount, totalOrderCount, canUndo, lastOrderTime, onEnableAudio, audioEnabled, onTestSound, debugMode, onToggleDebug }) {
+                 activeOrderCount, totalOrderCount, canUndo, lastOrderTime, onEnableAudio, audioEnabled, onShowSoundPanel, debugMode, onToggleDebug }) {
   const [time, setTime] = React.useState(new Date());
   const version = "2.5.0";
 
@@ -454,7 +527,7 @@
           </button>
         )}
         {audioEnabled && (
-          <button onClick={onToggleDebug} className="action-button" style={{ backgroundColor: '#FFD700', fontWeight: 'bold' }}>
+          <button onClick={onShowSoundPanel} className="action-button" style={{ backgroundColor: '#FFD700', fontWeight: 'bold' }}>
             🔊 Sound Settings
           </button>
         )}
@@ -630,6 +703,7 @@
             const [debugMode, setDebugMode] = React.useState(() => {
                 return localStorage.getItem('debugMode') === 'true';
             });
+            const [showSoundPanel, setShowSoundPanel] = React.useState(false);
             const [debugStats, setDebugStats] = React.useState({
                 lastFetchTime: null,
                 lastFetchDuration: 0,
@@ -1364,7 +1438,7 @@
                         lastOrderTime={lastOrderTime}
                         onEnableAudio={initializeAudio}
                         audioEnabled={audioEnabled}
-                        onTestSound={playNotificationSound}
+                        onShowSoundPanel={() => setShowSoundPanel(true)}
                         debugMode={debugMode}
                         onToggleDebug={toggleDebugMode}
                     />
@@ -1521,6 +1595,32 @@
                                 </button>
                             </div>
                         </div>
+                    )}
+
+                    {/* Sound Settings Panel */}
+                    {showSoundPanel && (
+                        <React.Fragment>
+                            <div className="sound-panel-overlay" onClick={() => setShowSoundPanel(false)} />
+                            <div className="sound-panel">
+                                <span className="sound-panel-close" onClick={() => setShowSoundPanel(false)}>✕</span>
+                                <h2>🔊 Sound Settings</h2>
+                                <p style={{ marginBottom: '1rem', color: '#666' }}>
+                                    Choose your notification sound:
+                                </p>
+                                {Object.entries(soundLibrary).map(([id, sound]) => (
+                                    <div
+                                        key={id}
+                                        className={`sound-item ${selectedSound === id ? 'active' : ''}`}
+                                        onClick={() => {
+                                            changeSound(id);
+                                            playNotificationSound();
+                                        }}
+                                    >
+                                        <div className="sound-item-name">{sound.name}</div>
+                                    </div>
+                                ))}
+                            </div>
+                        </React.Fragment>
                     )}
                 </div>
             );
